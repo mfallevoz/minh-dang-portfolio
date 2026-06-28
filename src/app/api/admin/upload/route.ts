@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 import { isAuthed } from "@/lib/auth";
 import { saveUpload, storageMode } from "@/lib/storage";
 
-// Sanitize a filename to a safe slug, keeping the extension.
 function safeName(name: string): string {
   const dot = name.lastIndexOf(".");
   const ext = dot >= 0 ? name.slice(dot).toLowerCase() : "";
   const base = (dot >= 0 ? name.slice(0, dot) : name)
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // strip accents
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "upload";
@@ -21,31 +20,49 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  // ── Production (Vercel Blob): act as the client-upload token endpoint ──
+  // ── Mode Production (Vercel Blob) ──
   if (storageMode === "blob") {
-    const body = await req.json();
-    const { handleUpload } = await import("@vercel/blob/client");
-    const json = await handleUpload({
-      body,
-      request: req,
-      onBeforeGenerateToken: async () => ({
-        addRandomSuffix: true,
-        allowedContentTypes: ["video/mp4", "image/jpeg", "image/png"],
-      }),
-      onUploadCompleted: async () => {
-        /* nothing to do — the client saves the URL into the project list */
-      },
-    });
-    return NextResponse.json(json);
+    try {
+      const body = await req.json();
+      const { handleUpload } = await import("@vercel/blob/client");
+      
+      const json = await handleUpload({
+        body,
+        request: req,
+        onBeforeGenerateToken: async () => ({
+          addRandomSuffix: true,
+          allowedContentTypes: [
+            "video/mp4", 
+            "video/quicktime", 
+            "video/webm",
+            "image/jpeg", 
+            "image/png"
+          ],
+          maximumSizeInMB: 500,
+        }),
+        onUploadCompleted: async () => {},
+      });
+      return NextResponse.json(json);
+    } catch (error) {
+      console.error("Erreur Blob:", error);
+      // Si on est en local et que Blob échoue, on ne veut pas bloquer, 
+      // mais en prod, on doit renvoyer l'erreur.
+      return NextResponse.json({ error: "Upload failed" }, { status: 400 });
+    }
   }
 
-  // ── Dev (local files): receive the file as multipart and write it ──
+  // ── Mode Développement Local ──
   const form = await req.formData();
   const file = form.get("file") as File | null;
   if (!file) {
-    return NextResponse.json({ ok: false, error: "No file" }, { status: 400 });
+    return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
   }
-  const name = safeName((form.get("name") as string) || file.name || "upload");
-  const url = await saveUpload(Buffer.from(await file.arrayBuffer()), name);
-  return NextResponse.json({ ok: true, url });
+
+  const name = safeName(file.name);
+  const buffer = Buffer.from(await file.arrayBuffer());
+  
+  // CORRECTION ICI : on envoie le buffer en premier, puis le nom
+  await saveUpload(buffer, name); 
+
+  return NextResponse.json({ url: `/videos/${name}` });
 }
