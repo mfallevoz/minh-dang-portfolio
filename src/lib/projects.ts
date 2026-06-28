@@ -8,13 +8,28 @@ import {
 } from "@/data/projects";
 
 // Raw list (for the admin). Seeds storage on first run.
-// In dev (local files) we seed the demo clips; in production (Blob) we start
-// empty, since the demo files aren't deployed — the cousin uploads from /admin.
+//
+// Resilient by design: a storage read/write failure must NEVER 500 the public
+// site. On Vercel the filesystem is read-only, so if Blob isn't connected the
+// local backend can't write — we just serve an empty list instead of crashing.
+// Demo clips are only seeded in real local dev (not on Vercel).
 export async function getStoredProjects(): Promise<StoredProject[]> {
-  const existing = await readProjects();
+  let existing: StoredProject[] | null = null;
+  try {
+    existing = await readProjects();
+  } catch {
+    existing = null;
+  }
   if (existing) return existing;
-  const seed = storageMode === "blob" ? [] : seedProjects;
-  await writeProjects(seed);
+
+  const onVercel = !!process.env.VERCEL;
+  const seed = storageMode === "local" && !onVercel ? seedProjects : [];
+
+  try {
+    await writeProjects(seed);
+  } catch {
+    // Read-only filesystem or storage not configured — serve without persisting.
+  }
   return seed;
 }
 
