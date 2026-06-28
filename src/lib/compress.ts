@@ -8,6 +8,23 @@ const CORE = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
 
 let ffmpegPromise: Promise<FFmpeg> | null = null;
 
+// Abandon any current (possibly stuck) ffmpeg instance so the next call
+// recreates a fresh one. Used when a compression times out.
+export function resetFFmpeg(): void {
+  if (ffmpegPromise) {
+    ffmpegPromise
+      .then((f) => {
+        try {
+          f.terminate();
+        } catch {
+          /* ignore */
+        }
+      })
+      .catch(() => {});
+    ffmpegPromise = null;
+  }
+}
+
 async function getFFmpeg(): Promise<FFmpeg> {
   if (!ffmpegPromise) {
     ffmpegPromise = (async () => {

@@ -572,6 +572,12 @@ a {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.admin-job-size {
+  opacity: 0.45;
+  font-weight: 400;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
 .admin-job-phase {
   font-family: var(--font-mono);
   font-size: 12px;

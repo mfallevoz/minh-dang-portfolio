@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { titleFromSrc, type StoredProject } from "@/data/projects";
-import { compressVideo, posterFromVideo } from "@/lib/compress";
+import { compressVideo, posterFromVideo, resetFFmpeg } from "@/lib/compress";
 
 type Mode = "local" | "blob";
 
@@ -10,11 +10,25 @@ type Mode = "local" | "blob";
 // in-browser compression). Bigger files, or non-MP4 formats, get transcoded.
 const COMPRESS_ABOVE_MB = 12;
 
+// Max time to spend compressing one file in the browser before giving up and
+// uploading the original instead (so a slow/stuck encode never blocks forever).
+const COMPRESS_TIMEOUT_MS = 45000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("compress-timeout")), ms)
+    ),
+  ]);
+}
+
 type Phase = "queued" | "compressing" | "uploading" | "done" | "error";
 
 type UploadJob = {
   id: string;
   name: string;
+  size: number; // bytes
   phase: Phase;
   startedAt: number;
   note?: string;
@@ -126,6 +140,7 @@ export default function AdminApp({
     const queued: UploadJob[] = videos.map((f) => ({
       id: crypto.randomUUID(),
       name: f.name,
+      size: f.size,
       phase: "queued",
       startedAt: 0,
     }));
@@ -148,13 +163,14 @@ export default function AdminApp({
 
       if (needsTranscode) {
         try {
-          const r = await compressVideo(file);
+          const r = await withTimeout(compressVideo(file), COMPRESS_TIMEOUT_MS);
           videoBlob = r.video;
           posterBlob = r.poster;
           ext = "mp4";
         } catch {
-          // ffmpeg.wasm unavailable → upload the original, unchanged.
-          setJob(jobId, { note: "compression unavailable — original file" });
+          // Too slow, stuck, or ffmpeg.wasm unavailable → upload the original.
+          resetFFmpeg();
+          setJob(jobId, { note: "compression skipped — uploading original" });
           posterBlob = await posterFromVideo(file).catch(() => null);
         }
       } else {
@@ -270,7 +286,12 @@ export default function AdminApp({
                     (j.phase === "done" ? " is-done" : "")
                   }
                 >
-                  <span className="admin-job-name">{j.name}</span>
+                  <span className="admin-job-name">
+                    {j.name}{" "}
+                    <span className="admin-job-size">
+                      ({(j.size / 1024 / 1024).toFixed(0)} MB)
+                    </span>
+                  </span>
                   <span className="admin-job-phase">
                     {j.phase === "queued" && "Queued…"}
                     {j.phase === "compressing" && `Compressing… ${elapsed}s`}
