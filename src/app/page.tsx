@@ -4,6 +4,7 @@ import { locales, localeNames } from "@/i18n/config";
 import { site } from "@/config";
 import { getProjects } from "@/lib/projects";
 import { siteUrl } from "@/lib/site-url";
+import PreloadVideos from "@/components/PreloadVideos";
 
 export const dynamic = "force-dynamic";
 
@@ -51,11 +52,13 @@ export default async function LandingPage() {
       </div>
 
       {/* Preload the first videos while the user is choosing a language. */}
-      <div className="preload" aria-hidden="true">
-        {projects.slice(0, PRELOAD_COUNT).map((p) => (
-          <video key={p.id} src={p.src} preload="auto" muted playsInline />
-        ))}
-      </div>
+      <PreloadVideos
+        items={projects.slice(0, PRELOAD_COUNT).map((p) => ({
+          id: p.id,
+          src: p.src,
+          srcMobile: p.srcMobile,
+        }))}
+      />
     </main>
   );
 }

@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { titleFromSrc, type StoredProject } from "@/data/projects";
-import { compressVideo, posterFromVideo, resetFFmpeg } from "@/lib/compress";
+import {
+  compressVideo,
+  cropMobile,
+  posterFromVideo,
+  resetFFmpeg,
+} from "@/lib/compress";
 
 type Mode = "local" | "blob";
 
@@ -13,6 +18,9 @@ const COMPRESS_ABOVE_MB = 12;
 // Max time to spend compressing one file in the browser before giving up and
 // uploading the original instead (so a slow/stuck encode never blocks forever).
 const COMPRESS_TIMEOUT_MS = 45000;
+
+// Max time to build the lighter mobile (cropped) version before skipping it.
+const MOBILE_TIMEOUT_MS = 30000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -125,7 +133,9 @@ export default function AdminApp({
     fetch("/api/admin/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls: [proj.src, proj.poster].filter(Boolean) }),
+      body: JSON.stringify({
+        urls: [proj.src, proj.srcMobile, proj.poster].filter(Boolean),
+      }),
     }).catch(() => {});
   };
 
@@ -179,10 +189,23 @@ export default function AdminApp({
         posterBlob = await posterFromVideo(file).catch(() => null);
       }
 
+      // Lighter, side-cropped (9:16) mobile version — best-effort.
+      let mobileBlob: Blob | null = null;
+      try {
+        setJob(jobId, { note: "building mobile version…" });
+        mobileBlob = await withTimeout(cropMobile(videoBlob), MOBILE_TIMEOUT_MS);
+      } catch {
+        resetFFmpeg();
+        mobileBlob = null;
+      }
+
       try {
         setJob(jobId, { phase: "uploading" });
         const slug = slugify(file.name);
         const src = await uploadFile(videoBlob, `${slug}.${ext}`, mode);
+        let srcMobile: string | undefined;
+        if (mobileBlob)
+          srcMobile = await uploadFile(mobileBlob, `${slug}-mobile.mp4`, mode);
         let poster: string | undefined;
         if (posterBlob) poster = await uploadFile(posterBlob, `${slug}.jpg`, mode);
 
@@ -190,6 +213,7 @@ export default function AdminApp({
           id: crypto.randomUUID(),
           title: titleFromSrc(file.name), // pre-filled, editable/clearable later
           src,
+          srcMobile,
           poster,
         };
         working = [...working, proj];

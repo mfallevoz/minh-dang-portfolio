@@ -274,7 +274,12 @@ export default function Carousel({
 
   const slides = Array.from({ length: COPIES }).flatMap((_, ci) =>
     projects.map((p, i) => (
-      <VideoSlide key={`${ci}-${i}`} src={p.src} poster={p.poster} />
+      <VideoSlide
+        key={`${ci}-${i}`}
+        src={p.src}
+        srcMobile={p.srcMobile}
+        poster={p.poster}
+      />
     ))
   );
 

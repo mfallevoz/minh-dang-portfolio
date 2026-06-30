@@ -19,6 +19,7 @@ export type StoredProject = {
   year?: number;
   category?: string;
   src: string; // video URL (e.g. /videos/x.mp4 in dev, or a Blob URL in prod)
+  srcMobile?: string; // lighter, side-cropped (9:16) version for small screens
   poster?: string; // optional poster image URL
 };
 

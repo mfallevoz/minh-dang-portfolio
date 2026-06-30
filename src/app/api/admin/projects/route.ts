@@ -34,6 +34,7 @@ export async function PUT(req: Request) {
         ? undefined
         : Number(p.year),
     src: String(p.src),
+    srcMobile: p.srcMobile ? String(p.srcMobile) : undefined,
     poster: p.poster ? String(p.poster) : undefined,
   }));
   await saveProjects(clean);

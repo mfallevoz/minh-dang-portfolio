@@ -14,15 +14,28 @@ import { useEffect, useRef, useState } from "react";
  */
 export default function VideoSlide({
   src,
+  srcMobile,
   poster,
 }: {
   src: string;
+  srcMobile?: string;
   poster?: string;
 }) {
   const rootRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const visibleRef = useRef(false);
   const [load, setLoad] = useState(false);
+
+  // On small screens, load the lighter cropped version when one exists.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  const effectiveSrc = isMobile && srcMobile ? srcMobile : src;
 
   // Safari blocks autoplay unless the element is muted *at the moment* play()
   // is called — and React doesn't reliably set the `muted` property. So we set
@@ -93,12 +106,13 @@ export default function VideoSlide({
     v.addEventListener("loadeddata", onReady);
     // Safari doesn't always begin loading a source set dynamically in JS —
     // an explicit load() kicks it off so the ready events actually fire.
+    // Also re-runs if the chosen source switches (desktop ↔ mobile).
     if (load) v.load();
     return () => {
       v.removeEventListener("canplay", onReady);
       v.removeEventListener("loadeddata", onReady);
     };
-  }, [load]);
+  }, [load, effectiveSrc]);
 
   // Safety net: if the browser blocked autoplay, the first user gesture
   // anywhere unlocks playback of the visible video (muted play is allowed then).
@@ -117,7 +131,7 @@ export default function VideoSlide({
       <video
         ref={videoRef}
         className="slide-media"
-        src={load ? src : undefined}
+        src={load ? effectiveSrc : undefined}
         poster={poster}
         autoPlay
         muted

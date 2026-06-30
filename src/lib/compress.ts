@@ -103,6 +103,45 @@ export async function compressVideo(
 }
 
 /**
+ * Build a lighter "mobile" version of a video: crop the sides to portrait 9:16
+ * (centered) and downscale to 720px tall. This is what small screens load —
+ * far fewer bytes than the full landscape video (whose sides are cropped by
+ * CSS `object-fit: cover` on mobile anyway).
+ *
+ * Best-effort: returns null if ffmpeg.wasm can't produce it.
+ */
+export async function cropMobile(input: Blob): Promise<Blob | null> {
+  const ffmpeg = await getFFmpeg();
+  try {
+    await ffmpeg.writeFile("m-in", await fetchFile(input));
+    await ffmpeg.exec([
+      "-i", "m-in",
+      // crop width to 9:16 of the height (never wider than the source), centered,
+      // then scale to 720 tall → ~405x720, very light.
+      "-vf", "crop=min(iw\\,ih*9/16):ih,scale=-2:720",
+      "-c:v", "libx264",
+      "-crf", "28",
+      "-preset", "veryfast",
+      "-an",
+      "-movflags", "+faststart",
+      "m-out.mp4",
+    ]);
+    const data = await ffmpeg.readFile("m-out.mp4");
+    return new Blob([data as unknown as BlobPart], { type: "video/mp4" });
+  } catch {
+    return null;
+  } finally {
+    for (const f of ["m-in", "m-out.mp4"]) {
+      try {
+        await ffmpeg.deleteFile(f);
+      } catch {
+        /* not written */
+      }
+    }
+  }
+}
+
+/**
  * Grab a poster (first ~1s frame) from a video file using a <video> + <canvas>
  * — cheap, no ffmpeg needed. Used for files we don't recompress.
  */
