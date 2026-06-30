@@ -37,3 +37,6 @@ next-env.d.ts
 # ffmpeg two-pass logs
 ffmpeg2pass-*.log*
 *.mbtree
+
+# Claude Code local tooling (not part of the project)
+.claude/
