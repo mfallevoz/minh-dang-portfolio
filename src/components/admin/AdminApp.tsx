@@ -197,8 +197,9 @@ export default function AdminApp({
         await persist(working);
         setJob(jobId, { phase: "done" });
         setTimeout(() => setJobs((prev) => prev.filter((j) => j.id !== jobId)), 2500);
-      } catch {
-        setJob(jobId, { phase: "error", note: "upload failed" });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "upload failed";
+        setJob(jobId, { phase: "error", note: message });
       }
     }
   };
