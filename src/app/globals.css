@@ -50,7 +50,11 @@ a {
   height: 100dvh;
   width: 100%;
   overflow: hidden;
-  background: #050505;
+  /* the poster is set inline as background-image — it frames like the video */
+  background-color: #050505;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .slide-media {
@@ -209,6 +213,130 @@ a {
   letter-spacing: 0.14em;
 }
 
+/* ───────────────────── Audio module (instrument rack) ─────────────────────
+   Sits in the right-hand column, directly above the camera HUD, so the mute
+   and level controls read as one more readout on the same instrument.        */
+.rack {
+  position: fixed;
+  right: var(--pad);
+  /* clears the HUD block underneath */
+  bottom: calc(var(--pad) + 84px);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  mix-blend-mode: difference;
+  color: #fff;
+}
+
+.sound-module {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-family: var(--font-mono);
+  user-select: none;
+}
+
+.sound-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  opacity: 0.85;
+  transition: opacity 0.2s ease;
+}
+.sound-label:hover {
+  opacity: 1;
+}
+.sound-module.is-muted .sound-label {
+  opacity: 0.5;
+}
+.sound-label svg {
+  display: block;
+}
+
+.sound-value {
+  min-width: 4ch;
+  text-align: right;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+
+/* ── Segmented level meter ── */
+.sound-meter {
+  position: relative;
+  width: 108px;
+  height: 16px;
+}
+
+.sound-segs {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.sound-seg {
+  flex: 1;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.14s ease, transform 0.14s ease;
+  transform-origin: bottom;
+}
+.sound-seg.is-on {
+  background: rgba(255, 255, 255, 0.92);
+}
+.sound-seg.is-hot.is-on {
+  background: #ff2d2d;
+}
+
+/* When the track is audible the last lit segment breathes, like a VU needle. */
+.sound-module.is-playing .sound-seg.is-on {
+  animation: vu 1.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 60ms);
+}
+@keyframes vu {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.62);
+  }
+}
+
+/* The real control: invisible, laid over the segments, fully keyboard-driven. */
+.sound-range {
+  position: absolute;
+  inset: -6px -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 12px);
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+  -webkit-appearance: none;
+  appearance: none;
+  background: none;
+}
+/* The segments sit under the range input in the DOM, so `:has()` on the
+   wrapper is what surfaces keyboard focus. */
+.sound-meter:has(.sound-range:focus-visible) .sound-segs {
+  outline: 1px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sound-module.is-playing .sound-seg.is-on {
+    animation: none;
+  }
+}
+
 /* ───────────────── Active nav + overlays hidden during navigation ───────────────── */
 .nav-link.is-active {
   opacity: 1;
@@ -302,7 +430,697 @@ a {
   border-color: rgba(255, 255, 255, 0.7);
 }
 
-/* ───────────────────────── Language landing page ───────────────────────── */
+/* ═══════════════════════════ TITLE SCREEN ═══════════════════════════
+   The front door. A muted loop of the teaser plays behind the wordmark;
+   nothing on the site makes a sound until the visitor presses Enter.       */
+.title {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+  display: grid;
+  place-items: center;
+  padding: var(--pad);
+  cursor: default;
+}
+/* While arming, clicking anywhere skips the wait and rolls the film. Once it
+   is running only Skip is clickable, so the pointer goes back to normal. */
+.title.is-arming {
+  cursor: pointer;
+}
+/* The film needs the full frame — no letterbox padding fighting it. */
+.title.is-playing {
+  padding: 0;
+}
+
+.title-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Full bleed — no letterbox bars. */
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.title.is-playing .title-bg {
+  opacity: 1;
+}
+
+/* …except on a portrait phone, where `cover` would slice the sides off the
+   LUCID lockup baked into the last seconds of the film.
+   The lockup spans roughly 30%–70% of the frame width. `cover` keeps a centred
+   band worth (viewport aspect ÷ 16:9) of that width — at 3/4 that is 42%,
+   i.e. 29%–71%, so the lockup just survives. Below 3/4 it starts getting cut,
+   so the film is fitted whole instead. */
+@media (max-aspect-ratio: 3/4) {
+  .title-bg {
+    object-fit: contain;
+  }
+}
+
+/* Only dresses the arming screen. Once the film rolls it gets out of the way —
+   the grade is the cousin's, not ours to tint. */
+.title.is-playing .title-vignette,
+.title.is-playing .title-grain,
+.title.is-playing .title-marks {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.title-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      68% 62% at 50% 48%,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.35) 62%,
+      rgba(0, 0, 0, 0.92) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.55) 0%,
+      rgba(0, 0, 0, 0) 24%,
+      rgba(0, 0, 0, 0) 62%,
+      rgba(0, 0, 0, 0.8) 100%
+    );
+}
+
+/* Film grain, matching the texture of the teaser. */
+.title-grain {
+  position: absolute;
+  inset: -60px;
+  pointer-events: none;
+  /* `screen`, not `overlay`: over a near-black plate overlay produces nothing.
+     Kept very low so the blacks stay black. */
+  opacity: 0.07;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  animation: grainShift 0.6s steps(4) infinite;
+}
+@keyframes grainShift {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-14px, 8px);
+  }
+  50% {
+    transform: translate(10px, -12px);
+  }
+  75% {
+    transform: translate(-6px, -6px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* ── Viewfinder corner marks ──
+   They live in their own gutter at the very edge of the screen. Everything
+   else keeps clear of them via --frame-clear, so nothing is ever covered. */
+.title {
+  --frame: clamp(12px, 1.6vw, 20px); /* distance from the screen edge */
+  --frame-mark: 20px; /* size of one bracket */
+  --frame-clear: calc(var(--frame) + var(--frame-mark) + 14px);
+}
+
+.title-marks {
+  position: absolute;
+  inset: var(--frame);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.9s ease 0.5s;
+}
+.title.is-booted .title-marks {
+  opacity: 0.35;
+}
+.title-marks i {
+  position: absolute;
+  width: var(--frame-mark);
+  height: var(--frame-mark);
+  border: 1px solid #fff;
+}
+.title-marks i:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+.title-marks i:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-left: 0;
+  border-bottom: 0;
+}
+.title-marks i:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+.title-marks i:nth-child(4) {
+  bottom: 0;
+  right: 0;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* ── Centre lockup ── */
+.title-inner {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 1s ease, transform 1s ease;
+}
+.title.is-booted .title-inner {
+  opacity: 1;
+  transform: none;
+}
+
+.title-word {
+  margin: 0;
+  font-size: clamp(52px, 13vw, 168px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 0.9;
+  color: #fff;
+  /* cold bloom + the teaser's chromatic fringing */
+  text-shadow:
+    0 0 42px rgba(190, 235, 240, 0.45),
+    0 0 110px rgba(140, 210, 220, 0.25),
+    -1.5px 0 0 rgba(255, 40, 40, 0.28),
+    1.5px 0 0 rgba(60, 220, 255, 0.28);
+  animation: titleBloom 6s ease-in-out infinite;
+}
+@keyframes titleBloom {
+  0%,
+  100% {
+    text-shadow:
+      0 0 42px rgba(190, 235, 240, 0.45),
+      0 0 110px rgba(140, 210, 220, 0.25),
+      -1.5px 0 0 rgba(255, 40, 40, 0.28),
+      1.5px 0 0 rgba(60, 220, 255, 0.28);
+  }
+  50% {
+    text-shadow:
+      0 0 30px rgba(190, 235, 240, 0.3),
+      0 0 90px rgba(140, 210, 220, 0.18),
+      -2.5px 0 0 rgba(255, 40, 40, 0.22),
+      2.5px 0 0 rgba(60, 220, 255, 0.22);
+  }
+}
+.title-dot {
+  color: #fff;
+}
+
+.title-tag {
+  margin: clamp(12px, 2vh, 20px) 0 0;
+  font-family: var(--font-mono);
+  font-size: clamp(10px, 1.5vw, 14px);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  /* the tracking pushes the block right; pull it back to true centre */
+  text-indent: 0.42em;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.title-audio-cta {
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+/* ── Countdown before the film rolls ── */
+.title-countdown {
+  margin-top: clamp(26px, 5vh, 46px);
+}
+
+.title-countdown-bar {
+  width: min(240px, 60vw);
+  height: 1px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.title-countdown-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: #fff;
+  transform-origin: left;
+  animation: countdown linear forwards; /* duration set inline */
+}
+@keyframes countdown {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.title-countdown-text {
+  margin: 14px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── Skip, during the film ──
+   Anchored exactly like `.hud` (same right/bottom), because that is what
+   replaces it after the cut: Skip gives way to the REC / timecode / FPS /
+   counter block, in place. Together with `.rack` sitting 84px above — the
+   height of that block — the whole right-hand column carries over unchanged.
+   Skip is ~35px tall, so it clears the rack by a comfortable margin. */
+.intro-skip {
+  position: absolute;
+  right: var(--pad);
+  bottom: calc(var(--pad) + 6px);
+  z-index: 5;
+  padding: 10px 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+  /* Fades up a beat after the film starts, so it never steps on the opening. */
+  opacity: 0;
+  animation: skipIn 0.6s ease 1.4s forwards;
+}
+.intro-skip:hover,
+.intro-skip:focus-visible {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.65);
+  background: rgba(0, 0, 0, 0.55);
+}
+@keyframes skipIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Sound panel ──
+   Centred under the wordmark on the arming screen. Touching it is what buys
+   the right to play the intro out loud, so it is the focus of that screen. */
+.title-audio {
+  /* `flex`, not `inline-flex`: a <button> is inline-level by default, so an
+     inline panel would share a line box with the Enter button and the two
+     would sit side by side / overlap. Both are block-level and auto-centred. */
+  display: flex;
+  width: fit-content;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: clamp(26px, 5vh, 46px) auto 0;
+  padding: 16px 26px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(3px);
+  cursor: default;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+.title-audio:hover {
+  border-color: rgba(255, 255, 255, 0.38);
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.title-audio-warn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 1.15vw, 13px);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #fff;
+  white-space: nowrap;
+}
+.title-audio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c8302f;
+  box-shadow: 0 0 12px rgba(200, 48, 47, 0.95);
+  animation: blink 1.6s steps(1) infinite;
+  flex: none;
+}
+
+.title-audio-rule {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Inline variant of the module: centred, and without the `difference` blend
+   used in the HUD — over this panel it would invert into mud. */
+.sound-module--inline {
+  align-items: center;
+  color: #fff;
+}
+.sound-module--inline .sound-label {
+  opacity: 1;
+}
+.sound-module--inline .sound-meter {
+  width: 168px;
+  height: 18px;
+}
+.sound-module--inline .sound-seg {
+  height: 13px;
+}
+
+.title-status {
+  position: absolute;
+  /* clears the bottom-right viewfinder bracket */
+  right: var(--frame-clear);
+  bottom: var(--frame-clear);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.6);
+  opacity: 0;
+  transition: opacity 0.9s ease 0.8s;
+}
+.title.is-booted .title-status {
+  opacity: 1;
+}
+.title-status-dim {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Glitch cut ──
+   A camera stop. Lives at the top level, above everything, and covers every
+   transition on the site: entering from the title screen, and swapping
+   language from About. */
+.glitch-cut {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.06) 0px,
+      rgba(255, 255, 255, 0.06) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    #000;
+}
+.glitch-bar {
+  position: absolute;
+  left: -10%;
+  width: 120%;
+  height: 14%;
+  background: rgba(255, 255, 255, 0.9);
+  mix-blend-mode: difference;
+  opacity: 0;
+}
+.glitch-bar:nth-child(1) {
+  top: 22%;
+}
+.glitch-bar:nth-child(2) {
+  top: 51%;
+  height: 8%;
+}
+.glitch-bar:nth-child(3) {
+  top: 74%;
+  height: 20%;
+}
+
+.glitch-cut.is-active {
+  animation: glitchOut 700ms steps(1) forwards;
+}
+.glitch-cut.is-active .glitch-bar {
+  animation: glitchBar 700ms steps(1) forwards;
+}
+
+/* .title-audio is a child of .title-inner now — animating both would compound
+   the transforms. */
+.title.is-entering .title-inner,
+.title.is-entering .title-status,
+.title.is-entering .title-marks {
+  animation: glitchShake 700ms steps(2) forwards;
+}
+.title.is-entering .title-bg {
+  animation: glitchZoom 700ms ease-in forwards;
+}
+
+/* Flicker, then a short solid blackout to hide the content swap. Percentages
+   are of 700ms — the blackout starts at 66% (462ms), the swap lands at 520ms,
+   leaving ~180ms of black before the hard cut back. */
+@keyframes glitchOut {
+  0% {
+    opacity: 0;
+  }
+  7% {
+    opacity: 0.85;
+  }
+  13% {
+    opacity: 0;
+  }
+  24% {
+    opacity: 0.6;
+  }
+  31% {
+    opacity: 0;
+  }
+  43% {
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 0.15;
+  }
+  58% {
+    opacity: 0.9;
+  }
+  62% {
+    opacity: 0.25;
+  }
+  /* ── blackout ── */
+  66% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+/* The bars stop at 64%, just before the blackout — nothing moves once the
+   screen has gone solid black. */
+@keyframes glitchBar {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(-6%);
+  }
+  16% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(5%);
+  }
+  38% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-3%);
+  }
+  56% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(4%);
+  }
+  64%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes glitchShake {
+  0% {
+    transform: translate(0, 0);
+    filter: none;
+  }
+  12% {
+    transform: translate(-7px, 2px);
+    filter: drop-shadow(4px 0 0 rgba(255, 0, 0, 0.7))
+      drop-shadow(-4px 0 0 rgba(0, 240, 255, 0.7));
+  }
+  24% {
+    transform: translate(6px, -3px);
+  }
+  40% {
+    transform: translate(-4px, 1px);
+    filter: drop-shadow(-6px 0 0 rgba(255, 0, 0, 0.6))
+      drop-shadow(6px 0 0 rgba(0, 240, 255, 0.6));
+  }
+  60% {
+    transform: translate(2px, 0);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+}
+@keyframes glitchZoom {
+  0% {
+    transform: scale(1.06);
+    filter: none;
+  }
+  55% {
+    transform: scale(1.16);
+    filter: contrast(1.5) brightness(1.4);
+  }
+  100% {
+    transform: scale(1.3);
+    filter: contrast(3) brightness(0.2);
+    opacity: 0;
+  }
+}
+
+/* Motion-sensitive visitors get a plain fade, no strobing. */
+@media (prefers-reduced-motion: reduce) {
+  .title-bg,
+  .title-grain,
+  .title-word,
+  .title-audio-dot {
+    animation: none !important;
+  }
+  /* <Experience> skips the cut entirely under reduced motion; belt and braces. */
+  .glitch-cut.is-active,
+  .glitch-cut.is-active .glitch-bar,
+  .title.is-entering .title-inner,
+  .title.is-entering .title-status,
+  .title.is-entering .title-marks,
+  .title.is-entering .title-bg {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .title-tag {
+    letter-spacing: 0.28em;
+    text-indent: 0.28em;
+  }
+  /* On a phone the brackets and the readout fight for the same corner —
+     the brackets win, they carry the viewfinder idea on their own. */
+  .title-status {
+    display: none;
+  }
+  .title-audio {
+    padding: 14px 18px 16px;
+    gap: 10px;
+  }
+  .title-audio-warn {
+    letter-spacing: 0.14em;
+  }
+  .sound-module--inline .sound-meter {
+    width: 150px;
+  }
+}
+
+/* Short viewports (landscape phones, small laptops): wordmark, sound panel and
+   countdown stack, so tighten everything rather than let it overflow. */
+@media (max-height: 640px) {
+  .title-word {
+    font-size: clamp(38px, 9vh, 72px);
+  }
+  .title-audio {
+    margin-top: 18px;
+    padding: 11px 20px 13px;
+    gap: 8px;
+  }
+  .title-countdown {
+    margin-top: 18px;
+  }
+}
+
+/* Visually hidden, still read by crawlers and screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ───────────────── Language switch (About section only) ───────────────── */
+.locale-switch {
+  margin-top: clamp(28px, 5vh, 48px);
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  max-width: 620px;
+}
+.locale-switch-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  opacity: 0.45;
+  margin-bottom: 12px;
+}
+.locale-switch ul {
+  display: flex;
+  gap: 22px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-wrap: wrap;
+}
+.locale-choice {
+  font-size: clamp(15px, 1.8vw, 17px);
+  padding-bottom: 3px;
+  border-bottom: 1px solid transparent;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+.locale-choice:hover {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+.locale-choice.is-active {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.85);
+}
+
+/* ───────────────── Fallback landing (no projects yet) ───────────────── */
 .landing {
   position: relative;
   height: 100dvh;
@@ -339,28 +1157,6 @@ a {
   letter-spacing: 0.28em;
   text-transform: uppercase;
   opacity: 0.6;
-}
-
-.landing-langs {
-  margin-top: clamp(40px, 8vh, 80px);
-  display: flex;
-  gap: clamp(20px, 5vw, 56px);
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.lang-choice {
-  font-size: clamp(20px, 2.6vw, 30px);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
-  transition: border-color 0.25s ease, opacity 0.25s ease;
-  opacity: 0.85;
-}
-.lang-choice:hover {
-  opacity: 1;
-  border-color: rgba(255, 255, 255, 0.9);
 }
 
 .landing-empty {

@@ -5,9 +5,16 @@ import { useEffect, useRef, useState } from "react";
 /**
  * A full-screen carousel slide — natively hosted video (<video>).
  *
- * Lazy-loading: the source is only loaded once the slide approaches the
- * viewport (rootMargin), which avoids overwhelming the browser when every
- * carousel copy is rendered at once. Once loaded, it stays mounted.
+ * Loading happens on two tracks:
+ *   1. an IntersectionObserver, for slides the visitor scrolls towards;
+ *   2. `warm`, set by the carousel during idle time, so the "runway" copies
+ *      already hold their source before a spin to About/Contact races past
+ *      them. Without it, a 1200ms spin outruns the observer and the runway
+ *      flashes empty.
+ * Once loaded, a slide stays loaded.
+ *
+ * The poster is also painted as the slide's background, so a slide that has
+ * not loaded yet shows the still frame rather than black.
  *
  * The video is muted, looping, and starts playing the moment any part of it
  * enters the viewport (pauses only once it's fully off-screen).
@@ -16,15 +23,18 @@ export default function VideoSlide({
   src,
   srcMobile,
   poster,
+  warm = false,
 }: {
   src: string;
   srcMobile?: string;
   poster?: string;
+  warm?: boolean;
 }) {
   const rootRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const visibleRef = useRef(false);
-  const [load, setLoad] = useState(false);
+  const [seen, setSeen] = useState(false);
+  const load = seen || warm;
 
   // On small screens, load the lighter cropped version when one exists.
   const [isMobile, setIsMobile] = useState(false);
@@ -63,15 +73,17 @@ export default function VideoSlide({
     const root = rootRef.current;
     if (!root) return;
 
-    // Preload the source a bit before the slide reaches the viewport.
+    // Preload the source well before the slide reaches the viewport. Generous
+    // on purpose: the spin travels several screens in about a second, so a
+    // tight margin would only start loading once it is already too late.
     const loadObserver = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          setLoad(true);
+          setSeen(true);
           loadObserver.disconnect();
         }
       },
-      { rootMargin: "150% 0px 150% 0px" }
+      { rootMargin: "400% 0px 400% 0px" }
     );
     loadObserver.observe(root);
 
@@ -127,7 +139,14 @@ export default function VideoSlide({
   }, []);
 
   return (
-    <section className="slide" ref={rootRef}>
+    <section
+      className="slide"
+      ref={rootRef}
+      // The still frame sits behind the <video>. Even mid-spin, before a
+      // source has attached or decoded, the slide shows the image — never a
+      // black hole. Costs one already-cached request.
+      style={poster ? { backgroundImage: `url(${poster})` } : undefined}
+    >
       <video
         ref={videoRef}
         className="slide-media"

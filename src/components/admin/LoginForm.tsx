@@ -29,7 +29,7 @@ export default function LoginForm() {
     <main className="admin-login">
       <form className="admin-login-box" onSubmit={submit}>
         <div className="admin-login-label">Admin</div>
-        <h1 className="admin-login-title">Minh&nbsp;Dang</h1>
+        <h1 className="admin-login-title">Lucid</h1>
         <input
           className="admin-input"
           type="password"

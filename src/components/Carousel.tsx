@@ -6,6 +6,8 @@ import VideoSlide from "./VideoSlide";
 import AboutSection from "./AboutSection";
 import ContactSection from "./ContactSection";
 import TopBar, { type View } from "./TopBar";
+import SoundModule from "./sound/SoundModule";
+import { useSound } from "./sound/SoundProvider";
 import type { Dictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 
@@ -22,24 +24,72 @@ import type { Locale } from "@/i18n/config";
 const COPIES = 6;
 
 // Navigation spin settings (to About/Contact).
-const SPIN_MS_PER_SLIDE = 90; // duration per slide travelled
-const SPIN_MIN_MS = 450; // min duration (short trips, e.g. About ↔ Contact)
-const SPIN_MAX_MS = 1200; // max duration (long trips)
+const SPIN_MS_PER_SLIDE = 120; // duration per slide travelled
+const SPIN_MIN_MS = 620; // min duration (short trips, e.g. About ↔ Contact)
+const SPIN_MAX_MS = 1700; // max duration (long trips)
+
+/**
+ * Easing for the spin, as a CSS-style cubic-bezier.
+ *
+ * The curve matters more than the duration here. An ease-out starts at full
+ * speed, which reads as a jump cut — the reel is already at top speed on the
+ * first frame. This one accelerates from a standstill, cruises, then spends
+ * most of its time settling, the way a physical reel would.
+ */
+const SPIN_EASING = cubicBezier(0.55, 0, 0.18, 1);
+
+/** Minimal cubic-bezier solver — same semantics as the CSS timing function. */
+function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
+  const a = (u: number, v: number) => 1 - 3 * v + 3 * u;
+  const b = (u: number, v: number) => 3 * v - 6 * u;
+  const c = (u: number) => 3 * u;
+  const at = (t: number, u: number, v: number) =>
+    ((a(u, v) * t + b(u, v)) * t + c(u)) * t;
+  const slope = (t: number, u: number, v: number) =>
+    3 * a(u, v) * t * t + 2 * b(u, v) * t + c(u);
+
+  return (x: number) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    // Newton-Raphson: find the t whose x matches, then read its y.
+    let t = x;
+    for (let i = 0; i < 5; i++) {
+      const s = slope(t, x1, x2);
+      if (s === 0) break;
+      t -= (at(t, x1, x2) - x) / s;
+    }
+    return at(t, y1, y2);
+  };
+}
 
 // Auto-scroll: the carousel advances by one video every N seconds.
 // Speed adapts to the screen height (slides = 100dvh) → consistent duration
 // on every device. Tuned for ~15s video loops.
 const AUTO_SECONDS_PER_SLIDE = 15;
 
+// ── Warming the runway ──
+// A spin to About crosses several screens in about a second, far faster than
+// lazy-loading can react. So once the first video is comfortably playing, the
+// remaining copies are given their source one at a time, in the background.
+// It costs almost no network — every copy points at the same handful of files,
+// already in the HTTP cache — but it does spawn a decoder per element, hence
+// the cap.
+const WARM_START_MS = 1400; // let the visible video settle first
+const WARM_STEP_MS = 180; // one more slide per tick
+const WARM_MAX_SLIDES = 24; // ceiling on simultaneous <video> decoders
+
 export default function Carousel({
   dict,
   locale,
   projects,
+  onLocaleChange,
 }: {
   dict: Dictionary;
   locale: Locale;
   projects: Project[];
+  onLocaleChange: (locale: Locale) => void;
 }) {
+  const { available: soundAvailable } = useSound();
   const P = projects.length;
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
@@ -57,10 +107,36 @@ export default function Carousel({
   const rafRef = useRef(0);
   const pauseRef = useRef(false); // auto-scroll paused (user interaction)
 
-  // Reflect the locale on the <html> element for accessibility.
+  // ── Warm the runway in the background ──
+  // How many slides (in DOM order) have been handed their source so far.
+  const totalSlides = P * COPIES;
+  const warmTarget = Math.min(totalSlides, WARM_MAX_SLIDES);
+  const [warmed, setWarmed] = useState(0);
+
   useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
+    if (warmTarget === 0) return;
+    let id: ReturnType<typeof setInterval>;
+    const kickoff = setTimeout(() => {
+      id = setInterval(() => {
+        setWarmed((n) => {
+          if (n >= warmTarget) {
+            clearInterval(id);
+            return n;
+          }
+          return n + 1;
+        });
+      }, WARM_STEP_MS);
+    }, WARM_START_MS);
+
+    return () => {
+      clearTimeout(kickoff);
+      clearInterval(id);
+    };
+  }, [warmTarget]);
+
+  // A click on About/Contact means the spin is imminent: stop trickling and
+  // hand every remaining slide its source at once.
+  const warmNow = () => setWarmed(warmTarget);
 
   // Offsets derived from a slide's height.
   const offsets = () => {
@@ -94,11 +170,10 @@ export default function Carousel({
       Math.max(SPIN_MIN_MS, (Math.abs(dist) / h) * SPIN_MS_PER_SLIDE)
     );
     const start = performance.now();
-    const ease = (t: number) => 1 - Math.pow(1 - t, 4); // easeOutQuart: fast then settles
 
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / dur);
-      c.scrollTop = from + dist * ease(t);
+      c.scrollTop = from + dist * SPIN_EASING(t);
       if (t < 1) {
         rafRef.current = requestAnimationFrame(step);
       } else {
@@ -112,16 +187,19 @@ export default function Carousel({
 
   const goAbout = () => {
     if (!ref.current || navRef.current) return;
+    warmNow();
     setView("about"); // hide the carousel overlays right away
     animateTo(offsets().about);
   };
   const goContact = () => {
     if (!ref.current || navRef.current) return;
+    warmNow();
     setView("contact");
     animateTo(offsets().contact);
   };
   const goHome = () => {
     if (!ref.current || navRef.current) return;
+    warmNow();
     const { h, copyH } = offsets();
     // Scroll back up to the active project in the centre copy.
     animateTo(copyH + active * h, () => setView("carousel"));
@@ -273,14 +351,18 @@ export default function Carousel({
   }, []);
 
   const slides = Array.from({ length: COPIES }).flatMap((_, ci) =>
-    projects.map((p, i) => (
-      <VideoSlide
-        key={`${ci}-${i}`}
-        src={p.src}
-        srcMobile={p.srcMobile}
-        poster={p.poster}
-      />
-    ))
+    projects.map((p, i) => {
+      const index = ci * P + i; // position in DOM order, across every copy
+      return (
+        <VideoSlide
+          key={`${ci}-${i}`}
+          src={p.src}
+          srcMobile={p.srcMobile}
+          poster={p.poster}
+          warm={index < warmed}
+        />
+      );
+    })
   );
 
   const current = projects[active];
@@ -299,9 +381,22 @@ export default function Carousel({
 
       <div className="carousel" ref={ref}>
         {slides}
-        <AboutSection dict={dict} />
+        <AboutSection
+          dict={dict}
+          locale={locale}
+          onLocaleChange={onLocaleChange}
+        />
         <ContactSection dict={dict} />
       </div>
+
+      {/* Audio module — part of the right-hand instrument column, and the only
+          overlay that stays put on About/Contact. Here it governs the
+          soundtrack, so with no track file there is nothing to govern. */}
+      {soundAvailable && (
+        <div className="rack">
+          <SoundModule />
+        </div>
+      )}
 
       {/* Active project info — empty fields are simply not shown */}
       <div className={"info" + hidden} key={active}>

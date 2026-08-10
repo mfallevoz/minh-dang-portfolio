@@ -5,7 +5,7 @@ import LoginForm from "@/components/admin/LoginForm";
 import AdminApp from "@/components/admin/AdminApp";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin — Minh Dang", robots: { index: false } };
+export const metadata = { title: "Admin — Lucid", robots: { index: false } };
 
 export default async function AdminPage() {
   if (!(await isAuthed())) {

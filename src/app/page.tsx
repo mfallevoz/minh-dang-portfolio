@@ -1,64 +1,91 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { locales, localeNames } from "@/i18n/config";
-import { site } from "@/config";
+import { site, sameAs } from "@/config";
 import { getProjects } from "@/lib/projects";
 import { siteUrl } from "@/lib/site-url";
-import PreloadVideos from "@/components/PreloadVideos";
+import Experience from "@/components/Experience";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"; // project list is editable at runtime
 
 export const metadata: Metadata = {
   title: `${site.name} — ${site.role}`,
   description:
-    "Minh Dang — film director, cinematographer and editor (Vietnam & international). Brand films, commercials and fashion films. EN / Tiếng Việt.",
-  alternates: {
-    canonical: siteUrl,
-    languages: {
-      en: `${siteUrl}/en`,
-      vi: `${siteUrl}/vi`,
-      "x-default": siteUrl,
-    },
-  },
+    "Lucid — creative studio based in Saigon, working internationally. Brand films, commercials, fashion films, photography and editing.",
+  keywords: [
+    "Lucid",
+    "creative studio Saigon",
+    "creative studio Vietnam",
+    "film director Vietnam",
+    "cinematographer Vietnam",
+    "director of photography",
+    "video editor",
+    "brand film",
+    "commercial",
+    "TVC",
+    "fashion film",
+    "photography",
+    "international",
+  ],
+  alternates: { canonical: siteUrl },
   openGraph: {
     type: "website",
     title: `${site.name} — ${site.role}`,
     description:
-      "Film director, cinematographer and editor. Vietnam & international.",
+      "Creative studio based in Saigon, working internationally. Brand films, commercials, fashion films, photography and editing.",
     url: siteUrl,
     siteName: site.name,
   },
+  twitter: {
+    card: "summary_large_image",
+    title: `${site.name} — ${site.role}`,
+    description: "Creative studio based in Saigon, working internationally.",
+  },
+  robots: { index: true, follow: true },
 };
 
-// How many videos to start fetching while the user picks a language, so the
-// portfolio feels instant once they enter.
-const PRELOAD_COUNT = 3;
-
-export default async function LandingPage() {
+export default async function HomePage() {
   const projects = await getProjects();
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: site.name,
+    url: siteUrl,
+    email: `mailto:${site.email}`,
+    sameAs,
+    knowsLanguage: ["en", "vi"],
+    knowsAbout: [
+      "Brand films",
+      "Commercials",
+      "Fashion films",
+      "Cinematography",
+      "Film directing",
+      "Video editing",
+      "Photography",
+    ],
+    address: { "@type": "PostalAddress", addressCountry: site.country },
+    areaServed: ["Vietnam", "Worldwide"],
+  };
+
   return (
-    <main className="landing">
-      <div className="landing-inner">
-        <div className="landing-name">{site.wordmark}</div>
-        <div className="landing-role">{site.role}</div>
-
-        <nav className="landing-langs" aria-label="Select language">
-          {locales.map((locale) => (
-            <Link key={locale} href={`/${locale}`} className="lang-choice">
-              {localeNames[locale]}
-            </Link>
-          ))}
-        </nav>
-      </div>
-
-      {/* Preload the first videos while the user is choosing a language. */}
-      <PreloadVideos
-        items={projects.slice(0, PRELOAD_COUNT).map((p) => ({
-          id: p.id,
-          src: p.src,
-          srcMobile: p.srcMobile,
-        }))}
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-    </main>
+
+      {projects.length === 0 ? (
+        <main className="landing">
+          <div className="landing-inner">
+            <div className="landing-name">{site.wordmark}</div>
+            <div className="landing-role">{site.role}</div>
+            <p className="landing-empty">
+              No videos yet — add them from <code>/admin</code>.
+            </p>
+          </div>
+        </main>
+      ) : (
+        <Experience projects={projects} />
+      )}
+    </>
   );
 }

@@ -47,7 +47,7 @@ export const seedProjects: StoredProject[] = [
   {
     id: "slide-1",
     title: "Slide 1",
-    client: "Dir. Minh Dang",
+    client: "Dir. Lucid",
     year: 2025,
     category: "Showreel",
     src: "/videos/slide-1.mp4",
@@ -56,7 +56,7 @@ export const seedProjects: StoredProject[] = [
   {
     id: "nuit-blanche",
     title: "Nuit Blanche",
-    client: "Dir. Minh Dang",
+    client: "Dir. Lucid",
     year: 2025,
     category: "Music Video",
     src: "/videos/nuit-blanche.mp4",

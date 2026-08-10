@@ -1,11 +1,23 @@
 import type { Dictionary } from "@/i18n";
+import type { Locale } from "@/i18n/config";
+import LocaleSwitch from "./LocaleSwitch";
 
 /**
  * "About" section — a full-screen slide hidden at the very bottom of the
  * carousel. Reachable only through the animated navigation (the video loop
  * never scrolls down this far).
+ *
+ * It also hosts the site's only language switch.
  */
-export default function AboutSection({ dict }: { dict: Dictionary }) {
+export default function AboutSection({
+  dict,
+  locale,
+  onLocaleChange,
+}: {
+  dict: Dictionary;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
+}) {
   return (
     <section className="slide section">
       <div className="section-inner">
@@ -19,6 +31,8 @@ export default function AboutSection({ dict }: { dict: Dictionary }) {
             {paragraph}
           </p>
         ))}
+
+        <LocaleSwitch current={locale} onChange={onLocaleChange} />
       </div>
     </section>
   );

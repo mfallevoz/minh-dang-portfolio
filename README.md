@@ -3,8 +3,13 @@
 Portfolio one-page : un **grand carousel vertical infini** où chaque vidéo /
 projet boucle. Inspiré de [antiantiart.com](https://www.antiantiart.com).
 
-- **Landing page de choix de langue** (`/`) qui précharge les vidéos pendant le choix
-- Portfolio multilingue : `/en` (anglais), `/vi` (vietnamien) — extensible
+- **Title screen** façon jeu vidéo (`/`) : teaser muet en boucle, avertissement
+  sonore + réglage du volume, un seul bouton « Enter our universe ». Les vidéos
+  du portfolio se préchargent pendant ce temps.
+- **Une seule URL.** Title screen, portfolio et langue sont des états de la même
+  page : aucune navigation, aucun rechargement. Toutes les transitions passent
+  par la même coupure glitch.
+- Bilingue EN / Tiếng Việt, le switch vit **uniquement dans About**
 - Logo en haut à gauche · **About** au centre · **Contact** à droite
 - Vidéo en plein cadre, infos du projet en bas à gauche, HUD « caméra » en bas à droite
 - Carousel vertical infini qui **défile lentement tout seul** (pause quand on
@@ -120,7 +125,11 @@ forcera à la renseigner dans les autres langues.
 2. Crée `src/i18n/dictionaries/<code>.ts` (copie de `en.ts`).
 3. Enregistre-le dans `src/i18n/index.ts`.
 
-La route `/<code>` et le bouton sur la landing page apparaissent automatiquement.
+Le bouton apparaît automatiquement dans le switch de la section About.
+
+> La langue **n'est pas dans l'URL** : c'est un état client, mémorisé en
+> `localStorage` (`lucid:locale`) et devinée depuis le navigateur à la première
+> visite. Changer de langue ne recharge rien.
 
 ### 2bis. Infos non traduisibles → `src/config.ts`
 
@@ -212,18 +221,23 @@ Il peut y :
 
 ## 🔎 SEO (référencement)
 
-Le **SEO technique** est en place et localisé (Vietnam + international, axé
-films de marque / films de mode) :
+> ⚠️ **Choix assumé : le SEO est en anglais uniquement.** Le site sert une seule
+> URL et la langue est résolue côté client, donc il n'y a plus de page `/vi` à
+> indexer. Les recherches en vietnamien ne remonteront pas le site. Pour
+> récupérer ce trafic il faudrait réintroduire une vraie page vietnamienne
+> servie côté serveur.
 
-- **Métadonnées localisées** EN/VI (titre, description, mots-clés) — éditables
-  dans `src/i18n/dictionaries/{en,vi}.ts` → clé `seo`.
-- **hreflang** (`/en`, `/vi`, `x-default`) + **canonical** → Google sait gérer
-  les deux langues sans contenu dupliqué.
-- **`sitemap.xml`** et **`robots.txt`** générés automatiquement (`/admin` et
-  `/api` exclus du crawl).
+Ce qui reste en place :
+
+- **Métadonnées** (titre, description, mots-clés) dans `src/app/page.tsx`.
+- **Canonical** sur l'URL racine.
+- **`sitemap.xml`** (une entrée) et **`robots.txt`** générés automatiquement
+  (`/admin` et `/api` exclus du crawl).
 - **Open Graph / Twitter Card** pour de jolis aperçus au partage.
-- **Données structurées** schema.org `Person` (métier, pays VN, langues,
-  réseaux) → aide Google à comprendre l'entité « Minh Dang ».
+- **Données structurées** schema.org `Organization` (domaines, pays VN, langues,
+  réseaux) → aide Google à comprendre l'entité « Lucid ».
+- **Redirections 301** de `/en` et `/vi` vers `/` (`next.config.mjs`) pour les
+  anciens liens et les URLs déjà indexées.
 
 ### À régler (sinon le SEO est incomplet)
 
@@ -231,8 +245,8 @@ films de marque / films de mode) :
    sitemap utilisent l'URL Vercel par défaut).
 2. **Vraies infos** : email, liens Instagram/Vimeo dans `src/config.ts`
    (ils alimentent les données structurées `sameAs`).
-3. **Mots-clés réels** : affine la clé `seo` des dictionnaires avec les termes
-   que tape vraiment la cible.
+3. **Mots-clés réels** : affine `keywords` dans `src/app/page.tsx` avec les
+   termes que tape vraiment la cible.
 
 ### Hors-code (le plus important pour « apparaître haut »)
 

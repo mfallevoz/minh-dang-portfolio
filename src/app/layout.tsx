@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { siteUrl } from "@/lib/site-url";
+import SoundProvider from "@/components/sound/SoundProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Minh Dang — Director / DP / Editor",
-  description: "Portfolio of Minh Dang — photography, video, editing.",
+  title: "Lucid — Director / DP / Editor",
+  description: "Portfolio of Lucid — photography, video, editing.",
 };
 
 export default function RootLayout({
@@ -23,7 +24,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* Owns the soundtrack and the shared mute / level state. It stays
+            completely silent until the visitor leaves the title screen. */}
+        <SoundProvider>{children}</SoundProvider>
+      </body>
     </html>
   );
 }

@@ -245,7 +245,7 @@ export default function AdminApp({
     <main className="admin">
       <header className="admin-bar">
         <div className="admin-bar-title">
-          MINH DANG <span className="admin-bar-sub">— Admin</span>
+          LUCID <span className="admin-bar-sub">— Admin</span>
         </div>
         <div className="admin-bar-actions">
           <span className="admin-mode">storage: {mode}</span>

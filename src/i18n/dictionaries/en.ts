@@ -1,26 +1,9 @@
 // English dictionary — this file is the source of truth for the dictionary
 // shape. Every other language must match the `Dictionary` type derived from it.
 
+// The dictionaries hold on-screen copy only. SEO metadata is not localised:
+// the site serves a single URL, so it is declared once in `src/app/page.tsx`.
 const en = {
-  // SEO — edit freely to refine ranking keywords (see README → SEO).
-  seo: {
-    title: "Minh Dang — Director, DP & Editor | Brand & Fashion Films",
-    description:
-      "Minh Dang — film director, cinematographer and editor based in Vietnam, available internationally. Brand films, commercials (TVC) and fashion films.",
-    keywords: [
-      "Minh Dang",
-      "film director Vietnam",
-      "cinematographer Vietnam",
-      "director of photography",
-      "video editor",
-      "brand film",
-      "commercial",
-      "TVC",
-      "fashion film",
-      "Vietnam",
-      "international",
-    ],
-  },
   nav: {
     about: "About",
     contact: "Contact",
@@ -28,7 +11,7 @@ const en = {
   },
   about: {
     label: "About",
-    title: "Minh Dang",
+    title: "Lucid",
     body: [
       "Director of photography & editor. Brand films, music videos and documentaries — I tell stories through images, from shoot to edit.",
       "Based in Paris · Available in France and worldwide.",
