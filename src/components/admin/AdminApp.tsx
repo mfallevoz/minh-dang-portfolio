@@ -5,6 +5,7 @@ import { titleFromSrc, type StoredProject } from "@/data/projects";
 import {
   cropMobile,
   posterFromVideo,
+  probeDuration,
   probeVideo,
   resetFFmpeg,
   type VideoSpec,
@@ -145,16 +146,21 @@ export default function AdminApp({
   // Weights measured on the fly for projects uploaded before sizes were
   // recorded. Display only — never written back, so opening the admin has no
   // side effect on stored data.
-  const [probed, setProbed] = useState<Record<string, number>>({});
+  const [probed, setProbed] = useState<
+    Record<string, { bytes?: number; duration?: number }>
+  >({});
   useEffect(() => {
     let alive = true;
-    const missing = list.filter((p) => p.bytes === undefined && p.src);
-    if (!missing.length) return;
+    const todo = list.filter((p) => p.src);
+    if (!todo.length) return;
     (async () => {
-      for (const p of missing) {
-        const n = await headSize(p.src);
+      for (const p of todo) {
+        // Size only when we didn't record it; duration always, since it is
+        // what turns a weight into a bitrate.
+        const bytes = p.bytes ?? (await headSize(p.src));
+        const duration = await probeDuration(p.src);
         if (!alive) return;
-        if (n !== undefined) setProbed((prev) => ({ ...prev, [p.id]: n }));
+        setProbed((prev) => ({ ...prev, [p.id]: { bytes, duration } }));
       }
     })();
     return () => {
@@ -162,7 +168,13 @@ export default function AdminApp({
     };
   }, [list]);
 
-  const sizeOf = (p: StoredProject) => p.bytes ?? probed[p.id];
+  const sizeOf = (p: StoredProject) => p.bytes ?? probed[p.id]?.bytes;
+  /** Mbps — the number that judges an export whatever its length. */
+  const rateOf = (p: StoredProject) => {
+    const bytes = sizeOf(p);
+    const d = probed[p.id]?.duration;
+    return bytes && d ? (bytes * 8) / d / 1e6 : undefined;
+  };
   const totalBytes = list.reduce((sum, p) => sum + (sizeOf(p) ?? 0), 0);
   const anyUnknown = list.some((p) => sizeOf(p) === undefined);
 
@@ -466,15 +478,26 @@ export default function AdminApp({
                     ? " is-heavy"
                     : "")
                 }
-                title={
-                  p.optimized === false
-                    ? "Uploaded without re-encoding — the browser gave up compressing it"
-                    : undefined
-                }
               >
                 {fmtBytes(sizeOf(p))}
-                {p.optimized === false && <span title="not optimized"> ⚠</span>}
               </div>
+              {/* The verdict: weight alone can mean a long film, bitrate
+                  cannot. Over target here means the export, not the edit. */}
+              {rateOf(p) !== undefined && (
+                <div
+                  className={
+                    "admin-size admin-rate" +
+                    (rateOf(p)! > TARGET_MBPS ? " is-heavy" : " is-ok")
+                  }
+                  title={
+                    rateOf(p)! > TARGET_MBPS
+                      ? `Over the ${TARGET_MBPS} Mbps target — re-export this one`
+                      : "Within target"
+                  }
+                >
+                  {rateOf(p)!.toFixed(1)} Mbps
+                </div>
+              )}
               {p.bytesMobile !== undefined && (
                 <div className="admin-size admin-size-dim">
                   {fmtBytes(p.bytesMobile)} mob.

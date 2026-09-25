@@ -180,6 +180,23 @@ export function probeVideo(file: File): Promise<VideoSpec | null> {
 }
 
 /**
+ * Duration of an already-uploaded video, read from its metadata only — the
+ * browser fetches the header, not the file. Combined with the byte size this
+ * gives the bitrate, which is what tells a good export from a master
+ * regardless of how long the film runs.
+ */
+export function probeDuration(url: string): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.muted = true;
+    v.onloadedmetadata = () => resolve(v.duration || undefined);
+    v.onerror = () => resolve(undefined);
+    v.src = url;
+  });
+}
+
+/**
  * Grab a poster (first ~1s frame) from a video file using a <video> + <canvas>
  * — cheap, no ffmpeg needed. Used for files we don't recompress.
  */

@@ -1460,6 +1460,22 @@ a {
   font-size: 10px;
   opacity: 0.4;
 }
+.admin-rate {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+.admin-rate.is-ok {
+  color: #7ddca0;
+  border-color: rgba(125, 220, 160, 0.3);
+  opacity: 0.9;
+}
+.admin-rate.is-heavy {
+  color: #ffb02e;
+  border-color: rgba(255, 176, 46, 0.45);
+  opacity: 1;
+}
 
 .admin-total {
   font-family: var(--font-mono);
