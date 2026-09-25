@@ -19,10 +19,10 @@ export const site = {
   //    silent — the audio module hides itself, nothing breaks.
   music: "/music/music.mp3",
 
-  email: "hello@minhdang.com",
-  instagram: { handle: "@minhdang", url: "https://instagram.com/" },
-  vimeo: { handle: "vimeo.com/minhdang", url: "https://vimeo.com/" },
+  email: "lucidministudio@gmail.com",
+  instagram: { handle: "@lucid.ministudio", url: "https://instagram.com/lucid.ministudio" },
+  zalo: { handle: "0776780940", url: "https://zalo.me/0776780940" },
 };
 
 // Public profiles, used by SEO structured data (schema.org `sameAs`).
-export const sameAs = [site.instagram.url, site.vimeo.url];
+export const sameAs = [site.instagram.url, site.zalo.url];

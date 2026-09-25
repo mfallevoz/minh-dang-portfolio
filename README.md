@@ -44,7 +44,7 @@ npm start
 ### 1. Les vidéos / projets → `src/data/projects.ts`
 
 Les vidéos sont hébergées **en natif** : ce sont de vrais fichiers servis par le
-site, lus par un lecteur `<video>` maison (pas d'iframe Vimeo/YouTube), comme sur
+site, lus par un lecteur `<video>` maison (pas de lecteur tiers embarqué), comme sur
 antiantiart.com. Zéro branding tiers, contrôle total de l'autoplay/boucle.
 
 Chaque projet est un objet :
@@ -133,7 +133,7 @@ Le bouton apparaît automatiquement dans le switch de la section About.
 
 ### 2bis. Infos non traduisibles → `src/config.ts`
 
-Le **nom**, l'**email**, les liens **Instagram/Vimeo** et le **rôle** (landing)
+Le **nom**, l'**email**, les liens **Instagram/Zalo** et le **rôle** (landing)
 sont les mêmes dans toutes les langues : ils sont centralisés dans `src/config.ts`.
 Le titre de l'onglet est dans `src/app/layout.tsx`.
 
@@ -243,7 +243,7 @@ Ce qui reste en place :
 
 1. **`NEXT_PUBLIC_SITE_URL`** sur Vercel = ton vrai domaine (sinon canonical /
    sitemap utilisent l'URL Vercel par défaut).
-2. **Vraies infos** : email, liens Instagram/Vimeo dans `src/config.ts`
+2. **Vraies infos** : email, liens Instagram/Zalo dans `src/config.ts`
    (ils alimentent les données structurées `sameAs`).
 3. **Mots-clés réels** : affine `keywords` dans `src/app/page.tsx` avec les
    termes que tape vraiment la cible.
@@ -254,7 +254,7 @@ Le SEO technique est **nécessaire mais pas suffisant**. Pour vraiment monter :
 
 - **Google Search Console** : ajouter le site, soumettre le `sitemap.xml`,
   définir le ciblage géographique.
-- **Backlinks** : liens depuis Instagram, Vimeo, presse, annuaires créatifs.
+- **Backlinks** : liens depuis Instagram, Zalo, presse, annuaires créatifs.
 - **Contenu texte** : un portfolio « tout vidéo » a peu de texte → étoffer la
   bio (About), ajouter des descriptions de projets aide énormément.
 - Cohérence **NAP** (nom/contact) sur tous les profils.

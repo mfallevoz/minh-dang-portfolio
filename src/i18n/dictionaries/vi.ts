@@ -10,9 +10,8 @@ const vi: Dictionary = {
   about: {
     label: "Giới thiệu",
     body: [
-      "Đạo diễn hình ảnh & dựng phim. Phim thương hiệu, MV và phim tài liệu — tôi kể chuyện bằng hình ảnh, từ quay đến dựng.",
-      "Sống tại Paris · Nhận dự án tại Pháp và quốc tế.",
-      "(Văn bản mẫu — sẽ được thay bằng tiểu sử thật.)",
+      "Đạo diễn hình ảnh & dựng phim. Fashion film, MV và TVC — tôi kể chuyện bằng hình ảnh, từ ý tưởng đến thành phẩm.",
+      "Hoạt động tại Sài Gòn · Nhận dự án toàn cầu.",
     ],
   },
   contact: {
@@ -21,9 +20,8 @@ const vi: Dictionary = {
     links: {
       email: "Email",
       instagram: "Instagram",
-      vimeo: "Vimeo",
+      zalo: "Zalo",
     },
-    note: "(Thông tin mẫu — sẽ được thay.)",
   },
 };
 

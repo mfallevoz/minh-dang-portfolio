@@ -23,14 +23,14 @@ export default function ContactSection({ dict }: { dict: Dictionary }) {
             </a>
           </li>
           <li>
-            <span>{dict.contact.links.vimeo}</span>
-            <a href={site.vimeo.url} target="_blank" rel="noreferrer">
-              {site.vimeo.handle}
+            <span>{dict.contact.links.zalo}</span>
+            <a href={site.zalo.url} target="_blank" rel="noreferrer">
+              {site.zalo.handle}
             </a>
           </li>
         </ul>
 
-        <p className="section-text section-muted">{dict.contact.note}</p>
+        {/* <p className="section-text section-muted">{dict.contact.note}</p> */}
       </div>
     </section>
   );

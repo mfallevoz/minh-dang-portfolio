@@ -13,9 +13,8 @@ const en = {
     label: "About",
     // No `title`: the section is headed by the logo, which is not translated.
     body: [
-      "Director of photography & editor. Brand films, music videos and documentaries — I tell stories through images, from shoot to edit.",
-      "Based in Paris · Available in France and worldwide.",
-      "(Placeholder text — replace with the real bio.)",
+      "Director of photography & editor. Fashion films, MV and TVC — I tell stories through images, from creative to final.",
+      "Based in Saigon · Available worldwide.",
     ],
   },
   contact: {
@@ -24,9 +23,9 @@ const en = {
     links: {
       email: "Email",
       instagram: "Instagram",
-      vimeo: "Vimeo",
+      zalo: "Zalo",
     },
-    note: "(Placeholder details — to be replaced.)",
+    // note: "(Placeholder details — to be replaced.)",
   },
 };
 
