@@ -21,6 +21,15 @@ export type StoredProject = {
   src: string; // video URL (e.g. /videos/x.mp4 in dev, or a Blob URL in prod)
   srcMobile?: string; // lighter, side-cropped (9:16) version for small screens
   poster?: string; // optional poster image URL
+
+  // Recorded at upload so the admin can show what each project costs a visitor
+  // without re-fetching every file. Optional: entries added before this
+  // existed have no value, and the admin falls back to a HEAD request.
+  bytes?: number;
+  bytesMobile?: number;
+  // False when the browser gave up transcoding and the original was uploaded
+  // as-is — the case worth flagging, since those are the heaviest files.
+  optimized?: boolean;
 };
 
 // What the site consumes (title is a string — empty when blank).

@@ -22,6 +22,30 @@ const COMPRESS_TIMEOUT_MS = 45000;
 // Max time to build the lighter mobile (cropped) version before skipping it.
 const MOBILE_TIMEOUT_MS = 30000;
 
+/** Anything heavier than this makes a visitor wait — flagged in the list. */
+const HEAVY_MB = 8;
+
+function fmtBytes(n: number | undefined): string {
+  if (!n && n !== 0) return "—";
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  const mb = n / (1024 * 1024);
+  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+}
+
+/**
+ * Weight of a file we did not upload ourselves (added before sizes were
+ * recorded). A HEAD request is enough — `content-length` without the body.
+ */
+async function headSize(url: string): Promise<number | undefined> {
+  try {
+    const res = await fetch(url, { method: "HEAD" });
+    const len = res.headers.get("content-length");
+    return len ? Number(len) : undefined;
+  } catch {
+    return undefined; // cross-origin or offline — just show nothing
+  }
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
@@ -87,6 +111,30 @@ export default function AdminApp({
   const [saving, setSaving] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Weights measured on the fly for projects uploaded before sizes were
+  // recorded. Display only — never written back, so opening the admin has no
+  // side effect on stored data.
+  const [probed, setProbed] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let alive = true;
+    const missing = list.filter((p) => p.bytes === undefined && p.src);
+    if (!missing.length) return;
+    (async () => {
+      for (const p of missing) {
+        const n = await headSize(p.src);
+        if (!alive) return;
+        if (n !== undefined) setProbed((prev) => ({ ...prev, [p.id]: n }));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [list]);
+
+  const sizeOf = (p: StoredProject) => p.bytes ?? probed[p.id];
+  const totalBytes = list.reduce((sum, p) => sum + (sizeOf(p) ?? 0), 0);
+  const anyUnknown = list.some((p) => sizeOf(p) === undefined);
 
   // Tick once per second while uploads run, to refresh the elapsed timers.
   const [, setTick] = useState(0);
@@ -170,6 +218,8 @@ export default function AdminApp({
       let videoBlob: Blob = file;
       let ext = (file.name.split(".").pop() || "mp4").toLowerCase();
       let posterBlob: Blob | null = null;
+      // Did we actually re-encode, or does the visitor get the raw export?
+      let optimized = true;
 
       if (needsTranscode) {
         try {
@@ -180,7 +230,10 @@ export default function AdminApp({
         } catch {
           // Too slow, stuck, or ffmpeg.wasm unavailable → upload the original.
           resetFFmpeg();
-          setJob(jobId, { note: "compression skipped — uploading original" });
+          optimized = false;
+          setJob(jobId, {
+            note: `compression skipped — uploading the original (${fmtBytes(file.size)})`,
+          });
           posterBlob = await posterFromVideo(file).catch(() => null);
         }
       } else {
@@ -215,6 +268,9 @@ export default function AdminApp({
           src,
           srcMobile,
           poster,
+          bytes: videoBlob.size,
+          bytesMobile: mobileBlob?.size,
+          optimized,
         };
         working = [...working, proj];
         setList(working);
@@ -248,6 +304,22 @@ export default function AdminApp({
           LUCID <span className="admin-bar-sub">— Admin</span>
         </div>
         <div className="admin-bar-actions">
+          {/* What the carousel actually costs a visitor — the number that
+              decides how long the site takes to feel ready. */}
+          {list.length > 0 && (
+            <span
+              className={
+                "admin-total" +
+                (totalBytes > HEAVY_MB * 1024 * 1024 * list.length
+                  ? " is-heavy"
+                  : "")
+              }
+            >
+              {fmtBytes(totalBytes)}
+              {anyUnknown && "+"} total · {list.length} video
+              {list.length > 1 ? "s" : ""}
+            </span>
+          )}
           <span className="admin-mode">storage: {mode}</span>
           <a className="admin-btn" href="/" target="_blank" rel="noreferrer">
             View site ↗
@@ -358,12 +430,35 @@ export default function AdminApp({
               </button>
             </div>
 
-            <div className="admin-thumb">
-              {p.poster ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.poster} alt="" />
-              ) : (
-                <div className="admin-thumb-none">video</div>
+            <div className="admin-media">
+              <div className="admin-thumb">
+                {p.poster ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.poster} alt="" />
+                ) : (
+                  <div className="admin-thumb-none">video</div>
+                )}
+              </div>
+              <div
+                className={
+                  "admin-size" +
+                  ((sizeOf(p) ?? 0) > HEAVY_MB * 1024 * 1024
+                    ? " is-heavy"
+                    : "")
+                }
+                title={
+                  p.optimized === false
+                    ? "Uploaded without re-encoding — the browser gave up compressing it"
+                    : undefined
+                }
+              >
+                {fmtBytes(sizeOf(p))}
+                {p.optimized === false && <span title="not optimized"> ⚠</span>}
+              </div>
+              {p.bytesMobile !== undefined && (
+                <div className="admin-size admin-size-dim">
+                  {fmtBytes(p.bytesMobile)} mob.
+                </div>
               )}
             </div>
 
