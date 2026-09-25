@@ -6,6 +6,8 @@ const nextConfig = {
   serverExternalPackages: ["ffmpeg-static"],
   outputFileTracingIncludes: {
     "/api/admin/upload": ["./node_modules/ffmpeg-static/ffmpeg"],
+    // Temporary: the catch-up route for videos that escaped compression.
+    "/api/admin/reoptimize": ["./node_modules/ffmpeg-static/ffmpeg"],
   },
 
   // The site used to serve /en and /vi. Those routes are gone — the language
