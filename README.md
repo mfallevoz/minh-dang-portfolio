@@ -201,9 +201,14 @@ c'est signalé en orange.
 > les vidéos : il vérifie seulement qu'elles sont prêtes pour le web et le dit
 > si ce n'est pas le cas. La qualité dépend donc entièrement de l'export.
 
-**Cible : MP4 / H.264, 1080p, ≤ 6 Mbps, sans audio, faststart.**
+**Cible : MP4 / H.264, 1080p, ~5 Mbps (6 max), sans audio, faststart.**
 
-Pour une vidéo de 15 s, ça donne un fichier d'environ **11 Mo**.
+Pour une vidéo de 15 s, ça donne un fichier d'environ **9 Mo**.
+
+> Repère mesuré sur le site : les vidéos qui passaient par l'ancienne compression
+> automatique tournent entre **2,1 et 3,3 Mbps** et tiennent très bien à l'écran.
+> 5 Mbps est donc déjà confortable — c'est le double, avec un encodeur bien
+> meilleur que celui du navigateur. Inutile de viser plus haut par principe.
 
 ### DaVinci Resolve — page Deliver
 
@@ -213,7 +218,7 @@ Pour une vidéo de 15 s, ça donne un fichier d'environ **11 Mo**.
 | Codec | H.264 |
 | Resolution | 1920 × 1080 |
 | Frame rate | celle du projet (24 / 25 / 30) |
-| Quality | Restrict to **6000** Kb/s |
+| Quality | Restrict to **5000** Kb/s |
 | Encoding profile | High |
 | Key frames | Automatic |
 | **Audio** | **décocher Export Audio** |
