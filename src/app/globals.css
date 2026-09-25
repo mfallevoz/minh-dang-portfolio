@@ -98,10 +98,16 @@ a {
 }
 
 .logo {
-  font-weight: 700;
-  font-size: clamp(13px, 1.3vw, 16px);
-  letter-spacing: 0.16em;
   justify-self: start;
+  display: block;
+  padding: 0;
+  line-height: 0;
+  color: #fff;
+}
+.logo svg {
+  display: block;
+  width: clamp(86px, 9vw, 124px);
+  height: auto;
 }
 
 .nav-link {
@@ -603,40 +609,30 @@ a {
   transform: none;
 }
 
+/* The mark is an inline SVG now, so the bloom runs through `filter`
+   drop-shadows — `text-shadow` has no effect on vector fills. */
 .title-word {
   margin: 0;
-  font-size: clamp(52px, 13vw, 168px);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 0.9;
+  line-height: 0;
   color: #fff;
-  /* cold bloom + the teaser's chromatic fringing */
-  text-shadow:
-    0 0 42px rgba(190, 235, 240, 0.45),
-    0 0 110px rgba(140, 210, 220, 0.25),
-    -1.5px 0 0 rgba(255, 40, 40, 0.28),
-    1.5px 0 0 rgba(60, 220, 255, 0.28);
   animation: titleBloom 6s ease-in-out infinite;
+}
+.title-word svg {
+  display: block;
+  /* the wordmark is ~6.2:1, so width is what to drive */
+  width: clamp(220px, 46vw, 620px);
+  height: auto;
 }
 @keyframes titleBloom {
   0%,
   100% {
-    text-shadow:
-      0 0 42px rgba(190, 235, 240, 0.45),
-      0 0 110px rgba(140, 210, 220, 0.25),
-      -1.5px 0 0 rgba(255, 40, 40, 0.28),
-      1.5px 0 0 rgba(60, 220, 255, 0.28);
+    filter: drop-shadow(0 0 26px rgba(190, 235, 240, 0.45))
+      drop-shadow(0 0 70px rgba(140, 210, 220, 0.28));
   }
   50% {
-    text-shadow:
-      0 0 30px rgba(190, 235, 240, 0.3),
-      0 0 90px rgba(140, 210, 220, 0.18),
-      -2.5px 0 0 rgba(255, 40, 40, 0.22),
-      2.5px 0 0 rgba(60, 220, 255, 0.22);
+    filter: drop-shadow(0 0 18px rgba(190, 235, 240, 0.3))
+      drop-shadow(0 0 54px rgba(140, 210, 220, 0.18));
   }
-}
-.title-dot {
-  color: #fff;
 }
 
 .title-tag {
@@ -1144,10 +1140,14 @@ a {
 }
 
 .landing-name {
-  font-weight: 700;
-  font-size: clamp(34px, 7vw, 84px);
-  letter-spacing: 0.04em;
-  line-height: 1;
+  line-height: 0;
+  color: #fff;
+}
+.landing-name svg {
+  display: block;
+  width: clamp(200px, 40vw, 440px);
+  height: auto;
+  margin: 0 auto;
 }
 
 .landing-role {

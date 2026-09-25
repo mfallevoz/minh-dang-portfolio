@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { site } from "@/config";
+import Wordmark from "@/components/Wordmark";
 import SoundModule from "@/components/sound/SoundModule";
 import { useSound } from "@/components/sound/SoundProvider";
 
@@ -251,8 +251,7 @@ export default function TitleScreen({
         <>
           <div className="title-inner">
             <h1 className="title-word">
-              {site.wordmark}
-              <span className="title-dot">.</span>
+              <Wordmark />
             </h1>
             <p className="title-tag">Production &middot; Cine &middot; Still</p>
 

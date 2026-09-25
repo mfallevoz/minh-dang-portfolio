@@ -3,6 +3,7 @@ import { site, sameAs } from "@/config";
 import { getProjects } from "@/lib/projects";
 import { siteUrl } from "@/lib/site-url";
 import Experience from "@/components/Experience";
+import Wordmark from "@/components/Wordmark";
 
 export const dynamic = "force-dynamic"; // project list is editable at runtime
 
@@ -76,7 +77,9 @@ export default async function HomePage() {
       {projects.length === 0 ? (
         <main className="landing">
           <div className="landing-inner">
-            <div className="landing-name">{site.wordmark}</div>
+            <div className="landing-name">
+              <Wordmark />
+            </div>
             <div className="landing-role">{site.role}</div>
             <p className="landing-empty">
               No videos yet — add them from <code>/admin</code>.

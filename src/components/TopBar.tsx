@@ -1,6 +1,6 @@
 "use client";
 
-import { site } from "@/config";
+import Wordmark from "./Wordmark";
 import type { Dictionary } from "@/i18n";
 
 export type View = "carousel" | "about" | "contact";
@@ -25,7 +25,7 @@ export default function TopBar({
   return (
     <header className="topbar">
       <button className="logo" onClick={onHome} aria-label={dict.nav.home}>
-        {site.wordmark}
+        <Wordmark />
       </button>
 
       <button
