@@ -208,6 +208,68 @@ export default function AdminApp({
     return () => clearInterval(id);
   }, [optimizingCount, dirty]);
 
+  // ── TEMPORARY: catch-up for videos that escaped compression ──
+  // Uploads from before the server re-encoded anything went up as untouched
+  // masters. This runs them through the same pipeline, one at a time (each
+  // rewrites projects.json). Remove with /api/admin/reoptimize once done.
+  const [catchUp, setCatchUp] = useState<
+    Record<string, "queued" | "working" | "failed">
+  >({});
+  const catchingUp = Object.values(catchUp).some(
+    (s) => s === "queued" || s === "working"
+  );
+  const escaped = list.filter(
+    (p) =>
+      !p.optimizing &&
+      p.optimized !== true &&
+      (p.optimized === false || (rateOf(p) ?? 0) > TARGET_MBPS)
+  );
+  const runCatchUp = async () => {
+    const ids = escaped.map((p) => p.id);
+    setCatchUp(Object.fromEntries(ids.map((id) => [id, "queued" as const])));
+    for (const id of ids) {
+      setCatchUp((prev) => ({ ...prev, [id]: "working" }));
+      let ok = false;
+      try {
+        const res = await fetch("/api/admin/reoptimize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+        const data = await res.json().catch(() => null);
+        const fresh: StoredProject | undefined = data?.project;
+        ok = res.ok && !!data?.ok;
+        // Take only what the server changed, so unsaved edits to the titles
+        // survive — and so a later save cannot write back the deleted original.
+        if (fresh)
+          setList((prev) =>
+            prev.map((p) =>
+              p.id === id
+                ? {
+                    ...p,
+                    src: fresh.src,
+                    srcMobile: fresh.srcMobile,
+                    poster: fresh.poster,
+                    bytes: fresh.bytes,
+                    bytesMobile: fresh.bytesMobile,
+                    optimized: fresh.optimized,
+                    optimizing: fresh.optimizing,
+                  }
+                : p
+            )
+          );
+      } catch {
+        ok = false;
+      }
+      setCatchUp((prev) => {
+        const next = { ...prev };
+        if (ok) delete next[id];
+        else next[id] = "failed";
+        return next;
+      });
+    }
+  };
+
   // Tick once per second while uploads run, to refresh the elapsed timers.
   const [, setTick] = useState(0);
   const activeJobs = jobs.some((j) => j.phase === "compressing" || j.phase === "uploading");
@@ -399,6 +461,20 @@ export default function AdminApp({
               {list.length > 1 ? "s" : ""}
             </span>
           )}
+          {mode === "blob" && (escaped.length > 0 || catchingUp) && (
+            <button
+              className="admin-btn"
+              disabled={catchingUp}
+              onClick={runCatchUp}
+              title="Re-encode, on the server, the videos that went up uncompressed. Keep this page open until it is done."
+            >
+              {catchingUp
+                ? `Compressing… ${
+                    Object.values(catchUp).filter((s) => s === "queued" || s === "working").length
+                  } left`
+                : `Compress ${escaped.length} heavy video${escaped.length > 1 ? "s" : ""}`}
+            </button>
+          )}
           <span className="admin-mode">storage: {mode}</span>
           <a className="admin-btn" href="/" target="_blank" rel="noreferrer">
             View site ↗
@@ -531,14 +607,25 @@ export default function AdminApp({
               >
                 {fmtBytes(sizeOf(p))}
               </div>
-              {p.optimizing && (
+              {(p.optimizing || catchUp[p.id] === "working") && (
                 <div className="admin-size admin-rate is-working">
                   optimizing…
                 </div>
               )}
+              {catchUp[p.id] === "queued" && (
+                <div className="admin-size admin-size-dim">queued</div>
+              )}
+              {catchUp[p.id] === "failed" && (
+                <div
+                  className="admin-size admin-rate is-heavy"
+                  title="The re-encode failed — the original is still online"
+                >
+                  failed
+                </div>
+              )}
               {/* The verdict: weight alone can mean a long film, bitrate
                   cannot. Over target here means the export, not the edit. */}
-              {!p.optimizing && rateOf(p) !== undefined && (
+              {!p.optimizing && !catchUp[p.id] && rateOf(p) !== undefined && (
                 <div
                   className={
                     "admin-size admin-rate" +
