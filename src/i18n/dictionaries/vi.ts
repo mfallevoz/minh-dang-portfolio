@@ -9,7 +9,6 @@ const vi: Dictionary = {
   },
   about: {
     label: "Giới thiệu",
-    title: "Lucid",
     body: [
       "Đạo diễn hình ảnh & dựng phim. Phim thương hiệu, MV và phim tài liệu — tôi kể chuyện bằng hình ảnh, từ quay đến dựng.",
       "Sống tại Paris · Nhận dự án tại Pháp và quốc tế.",

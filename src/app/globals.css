@@ -395,6 +395,18 @@ a {
   letter-spacing: -0.02em;
 }
 
+/* About leads with the mark instead of the studio name as type. Keeps the
+   heading's margin, drops the type metrics it no longer needs. */
+.section-title-mark {
+  line-height: 0;
+  color: #fff;
+}
+.section-title-mark svg {
+  display: block;
+  width: clamp(190px, 32vw, 400px);
+  height: auto;
+}
+
 .section-text {
   margin: 0 0 16px;
   max-width: 620px;

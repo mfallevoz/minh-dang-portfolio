@@ -1,6 +1,7 @@
 import type { Dictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import LocaleSwitch from "./LocaleSwitch";
+import Wordmark from "./Wordmark";
 
 /**
  * "About" section — a full-screen slide hidden at the very bottom of the
@@ -22,7 +23,9 @@ export default function AboutSection({
     <section className="slide section">
       <div className="section-inner">
         <div className="section-label">{dict.about.label}</div>
-        <h2 className="section-title">{dict.about.title}</h2>
+        <h2 className="section-title section-title-mark">
+          <Wordmark />
+        </h2>
         {dict.about.body.map((paragraph, i) => (
           <p
             key={i}

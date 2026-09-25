@@ -11,7 +11,7 @@ const en = {
   },
   about: {
     label: "About",
-    title: "Lucid",
+    // No `title`: the section is headed by the logo, which is not translated.
     body: [
       "Director of photography & editor. Brand films, music videos and documentaries — I tell stories through images, from shoot to edit.",
       "Based in Paris · Available in France and worldwide.",
