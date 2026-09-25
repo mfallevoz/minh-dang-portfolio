@@ -184,11 +184,67 @@ Pour que Minh gère ses vidéos **sans toucher au code**, le site a une page adm
 protégée par mot de passe : `tonsite.com/admin`.
 
 Il peut y :
-- **glisser-déposer** des vidéos (compressées + poster générés automatiquement
-  dans le navigateur avant l'envoi) ;
+- **glisser-déposer** des vidéos (poster généré automatiquement) ;
 - **réordonner** les projets (flèches ↑/↓) ;
 - **éditer** titre / catégorie / client / année ;
 - **supprimer** un projet.
+
+Chaque ligne affiche le **poids** de sa vidéo, et l'en-tête le **total du
+carousel** — le chiffre qui décide du temps de chargement. Au-delà de 8 Mo,
+c'est signalé en orange.
+
+---
+
+## 🎬 Préréglage d'export (à donner à Minh)
+
+> **C'est le réglage le plus important du site.** Le navigateur n'encode plus
+> les vidéos : il vérifie seulement qu'elles sont prêtes pour le web et le dit
+> si ce n'est pas le cas. La qualité dépend donc entièrement de l'export.
+
+**Cible : MP4 / H.264, 1080p, ≤ 6 Mbps, sans audio, faststart.**
+
+Pour une vidéo de 15 s, ça donne un fichier d'environ **11 Mo**.
+
+### DaVinci Resolve — page Deliver
+
+| Réglage | Valeur |
+|---|---|
+| Format | MP4 |
+| Codec | H.264 |
+| Resolution | 1920 × 1080 |
+| Frame rate | celle du projet (24 / 25 / 30) |
+| Quality | Restrict to **6000** Kb/s |
+| Encoding profile | High |
+| Key frames | Automatic |
+| **Audio** | **décocher Export Audio** |
+
+### Adobe Premiere — Media Encoder
+
+Preset de base `H.264 → YouTube 1080p Full HD`, puis :
+
+- **Bitrate Encoding** : VBR, 2 pass
+- **Target Bitrate** : 5 Mbps · **Maximum** : 6 Mbps
+- décocher **Export Audio**
+- cocher **Fast Start** (dans Multiplexer)
+
+### Pourquoi ces valeurs
+
+**Pas d'audio** : les vidéos du carousel sont muettes par construction — c'est
+la bande-son du site qu'on entend. Une piste audio embarquée serait téléchargée
+pour rien.
+
+**Faststart** place l'index du fichier au début : la lecture démarre pendant le
+téléchargement au lieu d'attendre la fin. Sans lui, une vidéo de 11 Mo ne
+s'affiche qu'une fois entièrement chargée.
+
+**1080p et pas 4K** : les vignettes s'affichent en plein écran mais en boucle
+courte, sur des écrans qui sont rarement en 4K. Une 4K pèse 4 fois plus pour
+une différence invisible dans ce contexte — et c'est le poids, pas la
+définition, qui fait fuir un client avant d'avoir vu le premier plan.
+
+**Si un plan précis « bave »** (dégradés, fumée, grain, noir profond), monte le
+bitrate pour *cette* vidéo plutôt que pour toutes : 8 Mbps sur un plan
+difficile coûte moins cher que 8 Mbps partout.
 
 ### Comment ça marche (pour toi)
 

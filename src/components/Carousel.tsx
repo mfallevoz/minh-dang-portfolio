@@ -67,16 +67,19 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
 // on every device. Tuned for ~15s video loops.
 const AUTO_SECONDS_PER_SLIDE = 15;
 
-// ── Warming the runway ──
-// A spin to About crosses several screens in about a second, far faster than
-// lazy-loading can react. So once the first video is comfortably playing, the
-// remaining copies are given their source one at a time, in the background.
-// It costs almost no network — every copy points at the same handful of files,
-// already in the HTTP cache — but it does spawn a decoder per element, hence
-// the cap.
-const WARM_START_MS = 1400; // let the visible video settle first
-const WARM_STEP_MS = 180; // one more slide per tick
-const WARM_MAX_SLIDES = 24; // ceiling on simultaneous <video> decoders
+// ── Warming ──
+// A spin to About crosses several screens in about a second, faster than
+// lazy-loading reacts. A few videos are therefore pulled in the background so
+// the start of that journey is live rather than still.
+//
+// Bounded by DISTINCT videos, not by slides. The copies all point at the same
+// handful of files, so warming "every slide" quietly meant downloading the
+// whole library: at ten projects that is well over a hundred megabytes fetched
+// before the visitor has asked for anything. Past this window the runway shows
+// posters — at roughly 120ms per slide mid-spin, that is indistinguishable.
+const WARM_VIDEOS = 3; // distinct videos pulled ahead of being asked for
+const WARM_START_MS = 1400; // let the visible one settle first
+const WARM_STEP_MS = 400; // then one more, unhurried
 
 export default function Carousel({
   dict,
@@ -107,10 +110,9 @@ export default function Carousel({
   const rafRef = useRef(0);
   const pauseRef = useRef(false); // auto-scroll paused (user interaction)
 
-  // ── Warm the runway in the background ──
-  // How many slides (in DOM order) have been handed their source so far.
-  const totalSlides = P * COPIES;
-  const warmTarget = Math.min(totalSlides, WARM_MAX_SLIDES);
+  // ── Warm a few videos in the background ──
+  // Counts DISTINCT videos handed their source so far, not slides.
+  const warmTarget = Math.min(P, WARM_VIDEOS);
   const [warmed, setWarmed] = useState(0);
 
   useEffect(() => {
@@ -351,18 +353,17 @@ export default function Carousel({
   }, []);
 
   const slides = Array.from({ length: COPIES }).flatMap((_, ci) =>
-    projects.map((p, i) => {
-      const index = ci * P + i; // position in DOM order, across every copy
-      return (
-        <VideoSlide
-          key={`${ci}-${i}`}
-          src={p.src}
-          srcMobile={p.srcMobile}
-          poster={p.poster}
-          warm={index < warmed}
-        />
-      );
-    })
+    projects.map((p, i) => (
+      // `i` is the project, not the slide: every copy of the same video shares
+      // one file, so warming is decided per video.
+      <VideoSlide
+        key={`${ci}-${i}`}
+        src={p.src}
+        srcMobile={p.srcMobile}
+        poster={p.poster}
+        warm={i < warmed}
+      />
+    ))
   );
 
   const current = projects[active];

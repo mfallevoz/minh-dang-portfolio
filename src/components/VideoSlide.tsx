@@ -33,8 +33,13 @@ export default function VideoSlide({
   const rootRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const visibleRef = useRef(false);
-  const [seen, setSeen] = useState(false);
-  const load = seen || warm;
+  // One-way: once a slide holds its source it keeps it. `warm` is a trigger,
+  // not a state — otherwise a slide would drop its video the moment the
+  // warming window moved on, and reload it on the way back.
+  const [load, setLoad] = useState(false);
+  useEffect(() => {
+    if (warm) setLoad(true);
+  }, [warm]);
 
   // On small screens, load the lighter cropped version when one exists.
   const [isMobile, setIsMobile] = useState(false);
@@ -79,7 +84,7 @@ export default function VideoSlide({
     const loadObserver = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          setSeen(true);
+          setLoad(true);
           loadObserver.disconnect();
         }
       },

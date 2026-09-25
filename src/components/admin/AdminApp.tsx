@@ -3,27 +3,57 @@
 import { useEffect, useRef, useState } from "react";
 import { titleFromSrc, type StoredProject } from "@/data/projects";
 import {
-  compressVideo,
   cropMobile,
   posterFromVideo,
+  probeVideo,
   resetFFmpeg,
+  type VideoSpec,
 } from "@/lib/compress";
 
 type Mode = "local" | "blob";
 
-// Files at/under this size that are already MP4 are uploaded as-is (no slow
-// in-browser compression). Bigger files, or non-MP4 formats, get transcoded.
-const COMPRESS_ABOVE_MB = 12;
-
-// Max time to spend compressing one file in the browser before giving up and
-// uploading the original instead (so a slow/stuck encode never blocks forever).
-const COMPRESS_TIMEOUT_MS = 45000;
+// ── What a web-ready export looks like ──
+// The browser is no longer asked to transcode masters: ffmpeg.wasm is an order
+// of magnitude slower than a real encoder, and on anything large it timed out
+// and uploaded the untouched master — so the heaviest files were precisely the
+// ones that escaped compression. Exports come from the edit instead, where the
+// encode is hardware-accelerated and the grade is under control. The admin's
+// job is to say plainly when a file misses the target.
+const TARGET_HEIGHT = 1080;
+const TARGET_MBPS = 6;
+const HARD_MBPS = 10; // beyond this, the file is a master, not an export
 
 // Max time to build the lighter mobile (cropped) version before skipping it.
 const MOBILE_TIMEOUT_MS = 30000;
 
 /** Anything heavier than this makes a visitor wait — flagged in the list. */
 const HEAVY_MB = 8;
+
+/**
+ * What is wrong with this export, in the words the person exporting needs.
+ * Returns null when the file is fine. Never blocks the upload — the file may
+ * be deliberate, and a refused upload with no way through is worse than a
+ * heavy one.
+ */
+function auditExport(spec: VideoSpec | null, file: File): string | null {
+  if (!spec) return null; // couldn't read it — say nothing rather than guess
+  const problems: string[] = [];
+  if (spec.height > TARGET_HEIGHT)
+    problems.push(
+      `${spec.width}×${spec.height} — export at ${TARGET_HEIGHT}p`
+    );
+  if (spec.mbps > HARD_MBPS)
+    problems.push(
+      `${spec.mbps.toFixed(0)} Mbps — this is a master, target ${TARGET_MBPS} Mbps`
+    );
+  else if (spec.mbps > TARGET_MBPS)
+    problems.push(
+      `${spec.mbps.toFixed(1)} Mbps — a little rich, target ${TARGET_MBPS}`
+    );
+  if (file.type && file.type !== "video/mp4")
+    problems.push(`${file.type.replace("video/", "")} — export MP4 / H.264`);
+  return problems.length ? problems.join(" · ") : null;
+}
 
 function fmtBytes(n: number | undefined): string {
   if (!n && n !== 0) return "—";
@@ -212,37 +242,23 @@ export default function AdminApp({
       const jobId = queued[k].id;
       setJob(jobId, { phase: "compressing", startedAt: Date.now() });
 
-      const needsTranscode =
-        file.type !== "video/mp4" || file.size > COMPRESS_ABOVE_MB * 1024 * 1024;
+      const videoBlob: Blob = file;
+      const ext = (file.name.split(".").pop() || "mp4").toLowerCase();
 
-      let videoBlob: Blob = file;
-      let ext = (file.name.split(".").pop() || "mp4").toLowerCase();
-      let posterBlob: Blob | null = null;
-      // Did we actually re-encode, or does the visitor get the raw export?
-      let optimized = true;
+      // Check the export rather than try to rescue it.
+      const spec = await probeVideo(file).catch(() => null);
+      const audit = auditExport(spec, file);
+      const optimized = !audit;
+      setJob(jobId, {
+        note: audit ? `⚠ ${audit}` : `web-ready · ${fmtBytes(file.size)}`,
+      });
 
-      if (needsTranscode) {
-        try {
-          const r = await withTimeout(compressVideo(file), COMPRESS_TIMEOUT_MS);
-          videoBlob = r.video;
-          posterBlob = r.poster;
-          ext = "mp4";
-        } catch {
-          // Too slow, stuck, or ffmpeg.wasm unavailable → upload the original.
-          resetFFmpeg();
-          optimized = false;
-          setJob(jobId, {
-            note: `compression skipped — uploading the original (${fmtBytes(file.size)})`,
-          });
-          posterBlob = await posterFromVideo(file).catch(() => null);
-        }
-      } else {
-        // Already web-ready: skip compression, just grab a poster.
-        setJob(jobId, { note: "already web-ready" });
-        posterBlob = await posterFromVideo(file).catch(() => null);
-      }
+      const posterBlob = await posterFromVideo(file).catch(() => null);
 
-      // Lighter, side-cropped (9:16) mobile version — best-effort.
+      // Lighter, side-cropped (9:16) mobile version — best-effort, and the one
+      // place ffmpeg.wasm still runs. It works on the web-ready export rather
+      // than a master, so it usually finishes; if it doesn't, say so instead
+      // of letting phones silently pull the full-width file.
       let mobileBlob: Blob | null = null;
       try {
         setJob(jobId, { note: "building mobile version…" });
@@ -250,6 +266,7 @@ export default function AdminApp({
       } catch {
         resetFFmpeg();
         mobileBlob = null;
+        setJob(jobId, { note: "⚠ no mobile version — phones get the full file" });
       }
 
       try {
@@ -360,7 +377,10 @@ export default function AdminApp({
           }}
         />
         <strong>Drop your videos here</strong>
-        <span>or click to choose — automatically compressed &amp; optimized</span>
+        <span>
+          or click to choose — MP4 / H.264, {TARGET_HEIGHT}p, ≤ {TARGET_MBPS}{" "}
+          Mbps, no audio
+        </span>
       </div>
 
       {/* Upload jobs */}

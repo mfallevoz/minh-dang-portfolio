@@ -141,6 +141,44 @@ export async function cropMobile(input: Blob): Promise<Blob | null> {
   }
 }
 
+export type VideoSpec = {
+  width: number;
+  height: number;
+  duration: number;
+  bytes: number;
+  /** Mbps, derived — what a visitor's connection has to sustain. */
+  mbps: number;
+};
+
+/**
+ * Read a file's dimensions and duration without decoding it, so the admin can
+ * tell whether an export is web-ready before it is uploaded.
+ */
+export function probeVideo(file: File): Promise<VideoSpec | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.muted = true;
+    v.src = url;
+    v.onloadedmetadata = () => {
+      const duration = v.duration || 0;
+      URL.revokeObjectURL(url);
+      resolve({
+        width: v.videoWidth,
+        height: v.videoHeight,
+        duration,
+        bytes: file.size,
+        mbps: duration ? (file.size * 8) / duration / 1e6 : 0,
+      });
+    };
+    v.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+  });
+}
+
 /**
  * Grab a poster (first ~1s frame) from a video file using a <video> + <canvas>
  * — cheap, no ffmpeg needed. Used for files we don't recompress.
