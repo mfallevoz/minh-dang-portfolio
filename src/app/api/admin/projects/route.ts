@@ -24,18 +24,28 @@ export async function PUT(req: Request) {
     const s = typeof v === "string" ? v.trim() : "";
     return s === "" ? undefined : s;
   };
+  const num = (v: unknown) =>
+    v === undefined || v === null || Number.isNaN(Number(v))
+      ? undefined
+      : Number(v);
+  const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
+
   const clean: StoredProject[] = body.projects.map((p: StoredProject) => ({
     id: String(p.id),
     title: str(p.title),
     client: str(p.client),
     category: str(p.category),
-    year:
-      p.year === undefined || p.year === null || Number.isNaN(Number(p.year))
-        ? undefined
-        : Number(p.year),
+    year: num(p.year),
     src: String(p.src),
     srcMobile: p.srcMobile ? String(p.srcMobile) : undefined,
     poster: p.poster ? String(p.poster) : undefined,
+    // Bookkeeping, not editable — but it must survive a save. Dropping these
+    // meant that reordering the list mid-encode erased the marker the server
+    // uses to find the entry it is about to replace.
+    bytes: num(p.bytes),
+    bytesMobile: num(p.bytesMobile),
+    optimized: bool(p.optimized),
+    optimizing: bool(p.optimizing),
   }));
   await saveProjects(clean);
   return NextResponse.json({ ok: true });

@@ -197,9 +197,10 @@ c'est signalé en orange.
 
 ## 🎬 Préréglage d'export (à donner à Minh)
 
-> **C'est le réglage le plus important du site.** Le navigateur n'encode plus
-> les vidéos : il vérifie seulement qu'elles sont prêtes pour le web et le dit
-> si ce n'est pas le cas. La qualité dépend donc entièrement de l'export.
+> **En production, le serveur ré-encode automatiquement** (voir ci-dessous), donc
+> ce préréglage n'est plus obligatoire — mais il reste conseillé : un fichier
+> déjà conforme est réencodé sans perte visible, alors qu'un master de 15 Mbps
+> subit une génération de compression supplémentaire.
 
 **Cible : MP4 / H.264, 1080p, ~5 Mbps (6 max), sans audio, faststart.**
 
@@ -209,6 +210,29 @@ Pour une vidéo de 15 s, ça donne un fichier d'environ **9 Mo**.
 > automatique tournent entre **2,1 et 3,3 Mbps** et tiennent très bien à l'écran.
 > 5 Mbps est donc déjà confortable — c'est le double, avec un encodeur bien
 > meilleur que celui du navigateur. Inutile de viser plus haut par principe.
+
+### Compression automatique côté serveur (prod uniquement)
+
+Quand une vidéo est déposée dans `/admin` **en production**, Vercel rappelle le
+site une fois le transfert terminé (`onUploadCompleted`) et ré-encode le fichier
+là-bas : 1080p, 5,5 Mbps max, sans audio, plus le poster et la version mobile.
+
+**Minh peut donc fermer l'onglet dès la fin du transfert.** Le projet est déjà
+visible sur le site entre-temps — avec le fichier lourd — puis remplacé
+silencieusement. L'admin affiche `optimizing…` pendant l'opération et se
+rafraîchit tout seul.
+
+Points à connaître :
+
+- **Ça ne fonctionne pas en `npm run dev`** : Vercel Blob ne peut pas rappeler
+  `localhost`. En local, le navigateur continue donc de fabriquer la version
+  mobile, et la vidéo principale reste telle quelle.
+- **Plafond d'upload : 200 Mo.** La fonction travaille dans un `/tmp` limité.
+- **Durée max : 800 s** (plan Pro). Un clip de 15 s prend moins d'une minute ;
+  un film de plusieurs minutes en 4K peut dépasser — dans ce cas l'original est
+  conservé tel quel et la ligne apparaît non optimisée.
+- Le binaire vient de `ffmpeg-static`, déclaré dans `next.config.mjs`
+  (`outputFileTracingIncludes`) pour être embarqué dans la fonction.
 
 ### DaVinci Resolve — page Deliver
 

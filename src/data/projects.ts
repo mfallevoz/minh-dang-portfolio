@@ -27,9 +27,13 @@ export type StoredProject = {
   // existed have no value, and the admin falls back to a HEAD request.
   bytes?: number;
   bytesMobile?: number;
-  // False when the browser gave up transcoding and the original was uploaded
-  // as-is — the case worth flagging, since those are the heaviest files.
+  // False when the file went up untouched — the case worth flagging, since
+  // those are the heaviest.
   optimized?: boolean;
+  // True between the upload landing and the server finishing its re-encode.
+  // The project is already live during that window, just heavy: better a
+  // heavy video than a gap where one should be.
+  optimizing?: boolean;
 };
 
 // What the site consumes (title is a string — empty when blank).

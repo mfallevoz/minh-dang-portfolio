@@ -111,13 +111,24 @@ function slugify(name: string): string {
   );
 }
 
-async function uploadFile(blob: Blob, filename: string, mode: Mode): Promise<string> {
+/**
+ * `projectId` marks this file as the master of that project: the server-side
+ * callback uses it to know which entry to re-encode and replace. Posters and
+ * mobile variants are uploaded without one, and pass straight through.
+ */
+async function uploadFile(
+  blob: Blob,
+  filename: string,
+  mode: Mode,
+  projectId?: string
+): Promise<string> {
   if (mode === "blob") {
     const { upload } = await import("@vercel/blob/client");
     const res = await upload(filename, blob, {
       access: "public",
       handleUploadUrl: "/api/admin/upload",
       contentType: blob.type,
+      clientPayload: projectId,
     });
     return res.url;
   }
@@ -177,6 +188,25 @@ export default function AdminApp({
   };
   const totalBytes = list.reduce((sum, p) => sum + (sizeOf(p) ?? 0), 0);
   const anyUnknown = list.some((p) => sizeOf(p) === undefined);
+
+  // While the server is re-encoding something, poll for the rewritten entry.
+  // Nothing is lost if the page is closed instead — this only spares whoever
+  // stayed from refreshing by hand.
+  const optimizingCount = list.filter((p) => p.optimizing).length;
+  useEffect(() => {
+    if (!optimizingCount || dirty) return;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch("/api/admin/projects", { cache: "no-store" });
+        if (!res.ok) return;
+        const { projects } = await res.json();
+        if (Array.isArray(projects)) setList(projects);
+      } catch {
+        /* keep polling */
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [optimizingCount, dirty]);
 
   // Tick once per second while uploads run, to refresh the elapsed timers.
   const [, setTick] = useState(0);
@@ -265,26 +295,35 @@ export default function AdminApp({
         note: audit ? `⚠ ${audit}` : `web-ready · ${fmtBytes(file.size)}`,
       });
 
+      // In production the server re-encodes after the upload lands, and builds
+      // the mobile crop and poster from the result. Locally there is no such
+      // callback (Vercel cannot reach localhost), so the browser still does it.
+      const serverSide = mode === "blob";
+      const projectId = crypto.randomUUID();
+
       const posterBlob = await posterFromVideo(file).catch(() => null);
 
-      // Lighter, side-cropped (9:16) mobile version — best-effort, and the one
-      // place ffmpeg.wasm still runs. It works on the web-ready export rather
-      // than a master, so it usually finishes; if it doesn't, say so instead
-      // of letting phones silently pull the full-width file.
       let mobileBlob: Blob | null = null;
-      try {
-        setJob(jobId, { note: "building mobile version…" });
-        mobileBlob = await withTimeout(cropMobile(videoBlob), MOBILE_TIMEOUT_MS);
-      } catch {
-        resetFFmpeg();
-        mobileBlob = null;
-        setJob(jobId, { note: "⚠ no mobile version — phones get the full file" });
+      if (!serverSide) {
+        try {
+          setJob(jobId, { note: "building mobile version…" });
+          mobileBlob = await withTimeout(cropMobile(videoBlob), MOBILE_TIMEOUT_MS);
+        } catch {
+          resetFFmpeg();
+          mobileBlob = null;
+          setJob(jobId, { note: "⚠ no mobile version — phones get the full file" });
+        }
       }
 
       try {
         setJob(jobId, { phase: "uploading" });
         const slug = slugify(file.name);
-        const src = await uploadFile(videoBlob, `${slug}.${ext}`, mode);
+        const src = await uploadFile(
+          videoBlob,
+          `${slug}.${ext}`,
+          mode,
+          serverSide ? projectId : undefined
+        );
         let srcMobile: string | undefined;
         if (mobileBlob)
           srcMobile = await uploadFile(mobileBlob, `${slug}-mobile.mp4`, mode);
@@ -292,20 +331,31 @@ export default function AdminApp({
         if (posterBlob) poster = await uploadFile(posterBlob, `${slug}.jpg`, mode);
 
         const proj: StoredProject = {
-          id: crypto.randomUUID(),
+          id: projectId,
           title: titleFromSrc(file.name), // pre-filled, editable/clearable later
           src,
           srcMobile,
           poster,
           bytes: videoBlob.size,
           bytesMobile: mobileBlob?.size,
-          optimized,
+          // In production the server has the last word on both of these; it
+          // rewrites the entry when the re-encode lands.
+          optimized: serverSide ? undefined : optimized,
+          optimizing: serverSide || undefined,
         };
         working = [...working, proj];
         setList(working);
         await persist(working);
-        setJob(jobId, { phase: "done" });
-        setTimeout(() => setJobs((prev) => prev.filter((j) => j.id !== jobId)), 2500);
+        setJob(jobId, {
+          phase: "done",
+          note: serverSide
+            ? "uploaded — optimizing on the server, you can close this page"
+            : undefined,
+        });
+        setTimeout(
+          () => setJobs((prev) => prev.filter((j) => j.id !== jobId)),
+          serverSide ? 6000 : 2500
+        );
       } catch (err) {
         const message = err instanceof Error ? err.message : "upload failed";
         setJob(jobId, { phase: "error", note: message });
@@ -481,9 +531,14 @@ export default function AdminApp({
               >
                 {fmtBytes(sizeOf(p))}
               </div>
+              {p.optimizing && (
+                <div className="admin-size admin-rate is-working">
+                  optimizing…
+                </div>
+              )}
               {/* The verdict: weight alone can mean a long film, bitrate
                   cannot. Over target here means the export, not the edit. */}
-              {rateOf(p) !== undefined && (
+              {!p.optimizing && rateOf(p) !== undefined && (
                 <div
                   className={
                     "admin-size admin-rate" +

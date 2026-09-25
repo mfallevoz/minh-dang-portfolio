@@ -1476,6 +1476,16 @@ a {
   border-color: rgba(255, 176, 46, 0.45);
   opacity: 1;
 }
+.admin-rate.is-working {
+  color: #8fc7ff;
+  border-color: rgba(143, 199, 255, 0.4);
+  animation: adminPulse 1.4s ease-in-out infinite;
+}
+@keyframes adminPulse {
+  50% {
+    opacity: 0.45;
+  }
+}
 
 .admin-total {
   font-family: var(--font-mono);
